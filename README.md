@@ -4,7 +4,7 @@ A Streamlit web application that uses AI to generate social media content ideas 
 
 ## Features
 
-- **AI Content Generation**: Generate social media content ideas, captions, hashtags, and campaign ideas using OpenAI's GPT models.
+- **AI Content Generation**: Generate social media content ideas, captions, hashtags, and campaign ideas using Gemini's models.
 - **Content Database**: Store generated content in a PostgreSQL database for future reference.
 - **Data Analytics**: Visualize and analyze your content data with interactive charts and tables.
 
@@ -12,7 +12,7 @@ A Streamlit web application that uses AI to generate social media content ideas 
 
 - Python 3.8+
 - PostgreSQL database
-- OpenAI API key
+- Gemini API key
 
 ## Installation
 
@@ -37,7 +37,7 @@ A Streamlit web application that uses AI to generate social media content ideas 
    ```
    cp .env.example .env
    ```
-   Then edit the `.env` file with your database and OpenAI API credentials.
+   Then edit the `.env` file with your database and Gemini API credentials.
 
 5. Set up the database:
    ```
