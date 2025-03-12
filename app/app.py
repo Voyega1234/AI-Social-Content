@@ -1937,7 +1937,7 @@ def generate_image_with_ideogram(prompt, style=None, aspect_ratio="1:1", negativ
         "image_request": {
             "prompt": prompt,
             "aspect_ratio": aspect_ratio,
-            "model": "V_1_TURBO",  # Using V_2 model which is more stable
+            "model": "V_2",  # Using V_2 model which is more stable
             "num_images": num_images  # Add number of images parameter
         }
     }
