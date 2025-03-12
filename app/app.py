@@ -18,307 +18,305 @@ st.set_page_config(
     page_title="AI Content Generator & Analytics",
     page_icon="✨",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
-# Set theme to dark and customize colors with improved UI
+# Set theme to light and customize colors with clean, minimal UI
 st.markdown("""
 <style>
-    /* Set dark theme colors */
+    /* Set light theme colors */
     :root {
-        --background-color: #0e1117;
-        --secondary-background-color: #262730;
-        --primary-color: #4da6ff;
-        --accent-color: #ff4b4b;
-        --text-color: #fafafa;
-        --widget-background-color: #1e2130;
-        --widget-border-color: #4da6ff;
+        --background-color: #ffffff;
+        --secondary-background-color: #f8f9fa;
+        --primary-color: #4285F4;
+        --accent-color: #34A853;
+        --text-color: #202124;
+        --widget-background-color: #ffffff;
+        --widget-border-color: #e0e0e0;
     }
     
     /* Main container styling */
     .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        padding-left: 2rem;
-        padding-right: 2rem;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
         max-width: 100%;
     }
     
     /* Header styling */
     h1, h2, h3 {
-        color: #4da6ff !important;
-        font-weight: 600 !important;
-        margin-bottom: 1rem !important;
+        color: #202124 !important;
+        font-weight: 500 !important;
+        margin-bottom: 0.75rem !important;
     }
     
     h1 {
-        background: linear-gradient(90deg, #4da6ff, #a64dff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 2.5rem !important;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid rgba(77, 166, 255, 0.3);
-        margin-bottom: 2rem !important;
+        color: #4285F4 !important;
+        font-size: 2rem !important;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e0e0e0;
+        margin-bottom: 1.5rem !important;
     }
     
     /* Style for text areas and input boxes */
     .stTextArea, .stTextInput {
-        background-color: #1e2130 !important;
-        color: #ffffff !important;
-        border: 1px solid #4da6ff !important;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-        transition: all 0.3s ease !important;
+        background-color: #ffffff !important;
+        color: #202124 !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 4px !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease !important;
     }
     
     .stTextArea:focus, .stTextInput:focus {
-        border-color: #a64dff !important;
-        box-shadow: 0 4px 12px rgba(77, 166, 255, 0.3) !important;
+        border-color: #4285F4 !important;
+        box-shadow: 0 1px 2px rgba(66, 133, 244, 0.1) !important;
     }
     
     /* Style for selectbox */
     .stSelectbox {
-        border-radius: 8px !important;
+        border-radius: 4px !important;
     }
     
     .stSelectbox > div > div {
-        background-color: #1e2130 !important;
-        border: 1px solid #4da6ff !important;
-        border-radius: 8px !important;
-        color: white !important;
+        background-color: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 4px !important;
+        color: #202124 !important;
     }
     
     /* Style for expanders */
     .streamlit-expanderHeader {
-        background-color: #262730 !important;
-        color: #ffffff !important;
-        border-radius: 8px !important;
-        padding: 1rem !important;
-        font-weight: 600 !important;
-        border-left: 4px solid #4da6ff !important;
-        transition: all 0.3s ease !important;
+        background-color: #f8f9fa !important;
+        color: #202124 !important;
+        border-radius: 4px !important;
+        padding: 0.75rem !important;
+        font-weight: 500 !important;
+        border-left: 2px solid #4285F4 !important;
+        transition: all 0.2s ease !important;
     }
     
     .streamlit-expanderHeader:hover {
-        background-color: #2d3340 !important;
-        border-left: 4px solid #a64dff !important;
+        background-color: #f1f3f4 !important;
     }
     
     /* Style for the content inside expanders */
     .streamlit-expanderContent {
-        background-color: #1e2130 !important;
-        border: 1px solid #4da6ff !important;
-        border-radius: 0 0 8px 8px !important;
-        padding: 1.5rem !important;
-        margin-top: -8px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        background-color: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 0 0 4px 4px !important;
+        padding: 1rem !important;
+        margin-top: -4px !important;
+        box-shadow: none !important;
     }
     
     /* Style for metrics */
     .stMetric {
-        background-color: #262730 !important;
-        border-radius: 8px !important;
-        padding: 1rem !important;
-        border: 1px solid #4da6ff !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-        transition: all 0.3s ease !important;
+        background-color: #f8f9fa !important;
+        border-radius: 4px !important;
+        padding: 0.75rem !important;
+        border: 1px solid #e0e0e0 !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease !important;
     }
     
     .stMetric:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 12px rgba(77, 166, 255, 0.2) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
     }
     
     .stMetric label {
-        color: #a64dff !important;
-        font-weight: 600 !important;
+        color: #5f6368 !important;
+        font-weight: 500 !important;
     }
     
     .stMetric [data-testid="stMetricValue"] {
-        font-size: 2rem !important;
-        font-weight: 700 !important;
-        color: #4da6ff !important;
+        font-size: 1.75rem !important;
+        font-weight: 600 !important;
+        color: #4285F4 !important;
     }
     
     .stMetric [data-testid="stMetricDelta"] {
-        font-size: 1rem !important;
-        font-weight: 600 !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
     }
     
     /* Style for dataframes */
     .stDataFrame {
-        background-color: #1e2130 !important;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-        padding: 0.5rem !important;
+        background-color: #ffffff !important;
+        border-radius: 4px !important;
+        box-shadow: none !important;
+        padding: 0.25rem !important;
+        border: 1px solid #e0e0e0 !important;
     }
     
     .stDataFrame [data-testid="stTable"] {
-        border-radius: 8px !important;
+        border-radius: 4px !important;
     }
     
     .stDataFrame th {
-        background-color: #262730 !important;
-        color: #4da6ff !important;
-        font-weight: 600 !important;
+        background-color: #f8f9fa !important;
+        color: #5f6368 !important;
+        font-weight: 500 !important;
     }
     
     .stDataFrame td {
-        background-color: #1e2130 !important;
-        color: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #202124 !important;
     }
     
     /* Style for tabs */
     .stTabs [data-baseweb="tab-list"] {
-        background-color: #262730 !important;
-        border-radius: 8px 8px 0 0 !important;
-        padding: 0.5rem 0.5rem 0 0.5rem !important;
-        gap: 0.5rem !important;
+        background-color: #f8f9fa !important;
+        border-radius: 4px 4px 0 0 !important;
+        padding: 0.25rem 0.25rem 0 0.25rem !important;
+        gap: 0.25rem !important;
     }
     
     .stTabs [data-baseweb="tab"] {
-        color: #ffffff !important;
-        border-radius: 8px 8px 0 0 !important;
-        padding: 0.75rem 1rem !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
+        color: #5f6368 !important;
+        border-radius: 4px 4px 0 0 !important;
+        padding: 0.5rem 0.75rem !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
     }
     
     .stTabs [aria-selected="true"] {
-        background-color: #4da6ff !important;
+        background-color: #4285F4 !important;
         color: #ffffff !important;
     }
     
     .stTabs [data-baseweb="tab-panel"] {
-        background-color: #1e2130 !important;
-        border: 1px solid #4da6ff !important;
-        border-radius: 0 0 8px 8px !important;
-        padding: 1.5rem !important;
+        background-color: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 0 0 4px 4px !important;
+        padding: 1rem !important;
     }
     
     /* Style for buttons */
     .stButton > button {
-        background: linear-gradient(90deg, #4da6ff, #a64dff) !important;
+        background-color: #4285F4 !important;
         color: #ffffff !important;
         border: none !important;
-        border-radius: 8px !important;
-        padding: 0.75rem 1.5rem !important;
-        font-weight: 600 !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-        transition: all 0.3s ease !important;
-        text-transform: uppercase !important;
-        letter-spacing: 1px !important;
+        border-radius: 4px !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: 500 !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
     }
     
     .stButton > button:hover {
-        background: linear-gradient(90deg, #3a80cc, #8a3ad9) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 12px rgba(77, 166, 255, 0.3) !important;
+        background-color: #3b78e7 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
     }
     
     /* Style for sidebar */
     .css-1d391kg, .css-1wrcr25 {
-        background-color: #1a1c23 !important;
+        background-color: #f8f9fa !important;
     }
     
     /* Style for sliders */
     .stSlider [data-baseweb="slider"] {
-        margin-top: 1rem !important;
-        margin-bottom: 1rem !important;
+        margin-top: 0.75rem !important;
+        margin-bottom: 0.75rem !important;
     }
     
     .stSlider [data-baseweb="slider"] [data-testid="stThumbValue"] {
-        background-color: #4da6ff !important;
+        background-color: #4285F4 !important;
         color: white !important;
-        font-weight: 600 !important;
+        font-weight: 500 !important;
     }
     
     /* Style for radio buttons */
     .stRadio [data-testid="stRadio"] > div {
-        gap: 0.5rem !important;
+        gap: 0.25rem !important;
     }
     
     .stRadio [data-testid="stRadio"] label {
-        background-color: #262730 !important;
-        border: 1px solid #4da6ff !important;
-        border-radius: 8px !important;
-        padding: 0.5rem 1rem !important;
-        transition: all 0.3s ease !important;
+        background-color: #f8f9fa !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 4px !important;
+        padding: 0.25rem 0.75rem !important;
+        transition: all 0.2s ease !important;
     }
     
     .stRadio [data-testid="stRadio"] label:hover {
-        background-color: #2d3340 !important;
+        background-color: #f1f3f4 !important;
     }
     
     /* Style for checkboxes */
     .stCheckbox [data-testid="stCheckbox"] > div {
-        background-color: #262730 !important;
-        border-radius: 8px !important;
-        padding: 0.5rem !important;
+        background-color: #f8f9fa !important;
+        border-radius: 4px !important;
+        padding: 0.25rem !important;
     }
     
     /* Style for dividers */
     hr {
-        border-color: rgba(77, 166, 255, 0.3) !important;
-        margin: 2rem 0 !important;
+        border-color: #e0e0e0 !important;
+        margin: 1.5rem 0 !important;
     }
     
     /* Style for tooltips */
     .stTooltipIcon {
-        color: #4da6ff !important;
+        color: #4285F4 !important;
     }
     
     /* Style for warnings and errors */
     .stAlert {
-        border-radius: 8px !important;
-        padding: 1rem !important;
-        margin: 1rem 0 !important;
-        border-left: 4px solid !important;
+        border-radius: 4px !important;
+        padding: 0.75rem !important;
+        margin: 0.75rem 0 !important;
+        border-left: 2px solid !important;
     }
     
     .stAlert[data-baseweb="notification"] {
-        background-color: #262730 !important;
+        background-color: #f8f9fa !important;
     }
     
     /* Success message */
     .stAlert[kind="success"] {
-        border-left-color: #09ab3b !important;
+        border-left-color: #34A853 !important;
     }
     
     /* Info message */
     .stAlert[kind="info"] {
-        border-left-color: #4da6ff !important;
+        border-left-color: #4285F4 !important;
     }
     
     /* Warning message */
     .stAlert[kind="warning"] {
-        border-left-color: #ff9800 !important;
+        border-left-color: #FBBC05 !important;
     }
     
     /* Error message */
     .stAlert[kind="error"] {
-        border-left-color: #ff4b4b !important;
+        border-left-color: #EA4335 !important;
     }
     
     /* Animation for generated content */
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 0; transform: translateY(5px); }
         to { opacity: 1; transform: translateY(0); }
     }
     
     .generated-content {
-        animation: fadeIn 0.5s ease-out forwards;
+        animation: fadeIn 0.3s ease-out forwards;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Add a custom header with logo and title
 st.markdown("""
-<div style="display: flex; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(77, 166, 255, 0.3);">
-    <div style="font-size: 3rem; margin-right: 1rem;">✨</div>
+<div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e0e0e0;">
+    <div style="font-size: 2.5rem; margin-right: 0.75rem; color: #4285F4;">✨</div>
     <div>
-        <h1 style="margin: 0; padding: 0;">AI Content Generator & Analytics</h1>
-        <p style="color: #a6a6a6; margin: 0; padding: 0;">Create engaging social media content with AI assistance</p>
+        <h1 style="margin: 0; padding: 0; color: #4285F4; font-size: 1.75rem; font-weight: 500;">AI Content Generator & Analytics</h1>
+        <p style="color: #5f6368; margin: 0; padding: 0; font-size: 0.9rem;">Create engaging social media content with AI assistance</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -361,10 +359,10 @@ def get_gemini_client():
 def sidebar_navigation():
     """Display the sidebar navigation."""
     st.sidebar.markdown("""
-    <div style="text-align: center; margin-bottom: 2rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">✨</div>
-        <h2 style="margin: 0; padding: 0; color: #4da6ff;">AI Content Generator</h2>
-        <p style="color: #a6a6a6; margin: 0; padding: 0;">Powered by Gemini AI</p>
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.75rem; color: #4285F4;">✨</div>
+        <h2 style="margin: 0; padding: 0; color: #4285F4; font-size: 1.5rem; font-weight: 500;">AI Content Generator</h2>
+        <p style="color: #5f6368; margin: 0; padding: 0; font-size: 0.9rem;">Powered by Gemini AI</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -487,24 +485,16 @@ def content_generator_page():
         )
     
     with col2:
-        # Style/Mood/Tone options
-        style = st.selectbox(
-            "Style",
-            ["Same as Brand", "Professional", "Casual", "Humorous", "Inspirational", "Educational"],
-            index=0  # Default to "Same as Brand"
+        # Replace Style/Mood/Tone dropdowns with a single text input for content preferences
+        st.markdown("### Content Preferences (Optional)")
+        content_preferences = st.text_area(
+            "Describe your preferred style, mood, or tone",
+            placeholder="e.g., 'Professional and friendly', 'Casual and humorous', or leave blank to match your brand's existing style",
+            help="Describe how you want your content to sound. If left blank, we'll generate content that matches your brand's existing style."
         )
         
-        mood = st.selectbox(
-            "Mood",
-            ["Same as Brand", "Happy", "Excited", "Serious", "Relaxed", "Urgent"],
-            index=0  # Default to "Same as Brand"
-        )
-        
-        tone = st.selectbox(
-            "Tone",
-            ["Same as Brand", "Friendly", "Authoritative", "Conversational", "Formal", "Playful"],
-            index=0  # Default to "Same as Brand"
-        )
+        # Add a note about multiple variations
+        st.info("We'll generate 3 different content variations for you to choose from.")
     
     # Product selection section
     with st.expander("Product Information", expanded=False):
@@ -596,11 +586,9 @@ def content_generator_page():
         if 'selected_product' not in st.session_state:
             st.session_state.selected_product = ""
         
-        # Add a label above the selectbox
-        st.markdown("**Select Product (optional):**")
-        # Use a key for the selectbox to maintain its state
+        # Use proper label for the selectbox
         selected_product = st.selectbox(
-            "",  # Empty label since we're using the markdown label above
+            "Select Product (optional)",
             options=product_options,
             index=product_options.index(st.session_state.selected_product) if st.session_state.selected_product in product_options else 0,
             help="Select a product to focus the content on, or leave blank to let the AI decide based on popular products",
@@ -614,10 +602,9 @@ def content_generator_page():
         if 'custom_product' not in st.session_state:
             st.session_state.custom_product = ""
         
-        # Add a label above the input box
-        st.markdown("**Or enter a custom product/service:**")
+        # Use proper label for the input
         custom_product = st.text_input(
-            "",  # Empty label since we're using the markdown label above
+            "Or enter a custom product/service",
             value=st.session_state.custom_product,
             help="If your product isn't in the list, enter it here",
             key="custom_product_input"
@@ -630,19 +617,18 @@ def content_generator_page():
         if 'product_description' not in st.session_state:
             st.session_state.product_description = ""
         
-        # Add a label above the text area
-        st.markdown("**Product Description (optional):**")
+        # Use proper label for the text area
         if selected_product and selected_product in [p["product_name"] for p in products]:
             product_desc = next((p["product_description"] for p in products if p["product_name"] == selected_product), "")
             product_description = st.text_area(
-                "",  # Empty label since we're using the markdown label above
+                "Product Description (optional)",
                 value=product_desc if not st.session_state.product_description else st.session_state.product_description,
                 help="Provide details about the product to help the AI generate better content",
                 key="product_description_area"
             )
         else:
             product_description = st.text_area(
-                "",  # Empty label since we're using the markdown label above
+                "Product Description (optional)",
                 value=st.session_state.product_description,
                 help="Provide details about the product to help the AI generate better content",
                 key="product_description_area"
@@ -651,17 +637,15 @@ def content_generator_page():
         # Update the session state
         st.session_state.product_description = product_description
         
-        # Add a label above the hashtags input
-        st.markdown("**Hashtags (comma separated):**")
+        # Use proper label for the hashtags input
         hashtags_input = st.text_area(
-            "",  # Empty label since we're using the markdown label above
+            "Hashtags (comma separated)",
             key="hashtags_input"
         )
         
-        # Add a label above the additional context input
-        st.markdown("**Additional Context for Content:**")
+        # Use proper label for the additional context input
         additional_context = st.text_area(
-            "",  # Empty label since we're using the markdown label above
+            "Additional Context for Content",
             key="additional_context_input"
         )
     
@@ -1051,12 +1035,11 @@ def content_generator_page():
                     """
                 
                 # Prepare style/mood/tone context
-                style_context = f"Style: {style}"
-                mood_context = f"Mood: {mood}"
-                tone_context = f"Tone: {tone}"
-                
-                if style == "Same as Brand" or mood == "Same as Brand" or tone == "Same as Brand":
-                    style_context += " (maintain consistent brand voice)"
+                style_context = ""
+                if content_preferences:
+                    style_context = f"Content Preferences: {content_preferences}"
+                else:
+                    style_context = "Content Preferences: Match the brand's existing style and tone"
                 
                 # Language instruction
                 language_instruction = ""
@@ -1067,14 +1050,12 @@ def content_generator_page():
                 elif language == "Mixed Thai-English":
                     language_instruction = "Generate the content in a mix of Thai and English languages, with Thai being the primary language."
                 
-                # Prepare prompt
-                prompt = f"""
+                # Prepare base prompt
+                base_prompt = f"""
                 {language_instruction}
                 
                 Generate social media content for {platform} as a {content_type}.
                 {style_context}
-                {mood_context}
-                {tone_context}
                 
                 Business Information:
                 {business_context}
@@ -1090,32 +1071,55 @@ def content_generator_page():
                 {reference_text}
                 """
                 
-                # Call Gemini API using the correct format
+                # Create 3 different variations with different styles
+                variation_prompts = [
+                    base_prompt + "\nCreate content that is professional and informative.",
+                    base_prompt + "\nCreate content that is casual and friendly.",
+                    base_prompt + "\nCreate content that is creative and engaging."
+                ]
+                
+                # Call Gemini API for each variation
                 try:
-                    response = client.models.generate_content(
-                        model="gemini-2.0-flash",
-                        contents=prompt
-                    )
+                    generated_contents = []
+                    extracted_hashtags_list = []
                     
-                    # Display generated content
-                    generated_content = response.text
+                    for i, prompt in enumerate(variation_prompts):
+                        with st.spinner(f"Generating variation {i+1}..."):
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=prompt
+                            )
+                            
+                            # Store generated content
+                            generated_content = response.text
+                            generated_contents.append(generated_content)
+                            
+                            # Extract hashtags if present
+                            variation_hashtags = hashtags_input
+                            if not variation_hashtags and "#" in generated_content:
+                                # Try to extract hashtags from the generated content
+                                potential_hashtags = [word.strip() for word in generated_content.split() if word.startswith("#")]
+                                if potential_hashtags:
+                                    variation_hashtags = ",".join([tag.replace("#", "") for tag in potential_hashtags])
+                            
+                            extracted_hashtags_list.append(variation_hashtags)
                     
-                    # Extract hashtags if present
-                    hashtags = hashtags_input
-                    if not hashtags and "#" in generated_content:
-                        # Try to extract hashtags from the generated content
-                        potential_hashtags = [word.strip() for word in generated_content.split() if word.startswith("#")]
-                        if potential_hashtags:
-                            hashtags = ",".join([tag.replace("#", "") for tag in potential_hashtags])
+                    # Display content with tabs for each variation
+                    st.subheader("Generated Content Variations:")
                     
-                    # Display content with full context
-                    st.subheader("Generated Content:")
-                    st.write(generated_content)
+                    # Create tabs for each variation
+                    tabs = st.tabs([f"Variation {i+1}" for i in range(len(generated_contents))])
                     
-                    # Display extracted hashtags if any
-                    if hashtags:
-                        st.markdown("**Extracted Hashtags:**")
-                        st.write(hashtags)
+                    # Display content in each tab
+                    for i, tab in enumerate(tabs):
+                        with tab:
+                            st.markdown(f"**Style: {'Professional & Informative' if i == 0 else 'Casual & Friendly' if i == 1 else 'Creative & Engaging'}**")
+                            st.write(generated_contents[i])
+                            
+                            # Display extracted hashtags if any
+                            if extracted_hashtags_list[i]:
+                                st.markdown("**Extracted Hashtags:**")
+                                st.write(extracted_hashtags_list[i])
                     
                     # Display note about read-only mode
                     st.info("This application is in read-only mode. Content cannot be saved to the database.")
@@ -1479,13 +1483,13 @@ def data_analytics_page():
                         st.metric("Shares", shares)
                         st.metric("Saves", saves)
                         
-                        # Show engagement score calculation
-                        st.markdown("**Engagement Score Calculation:**")
-                        st.markdown(f"Likes: {likes}")
-                        st.markdown(f"Comments × 2: {comments} × 2 = {comments * 2}")
-                        st.markdown(f"Shares × 3: {shares} × 3 = {shares * 3}")
-                        st.markdown(f"Saves × 2: {saves} × 2 = {saves * 2}")
-                        st.markdown(f"**Total: {engagement_score}**")
+                        # Engagement score calculation is now hidden
+                        # st.markdown("**Engagement Score Calculation:**")
+                        # st.markdown(f"Likes: {likes}")
+                        # st.markdown(f"Comments × 2: {comments} × 2 = {comments * 2}")
+                        # st.markdown(f"Shares × 3: {shares} × 3 = {shares * 3}")
+                        # st.markdown(f"Saves × 2: {saves} × 2 = {saves * 2}")
+                        st.markdown(f"**Total Engagement Score: {engagement_score}**")
         else:
             st.info("No content found with the selected filters.")
     
@@ -1508,8 +1512,8 @@ def main():
     
     # Add footer
     st.markdown("""
-    <div style="text-align: center; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid rgba(77, 166, 255, 0.3);">
-        <p style="color: #a6a6a6; font-size: 0.8rem;">
+    <div style="text-align: center; margin-top: 2rem; padding-top: 0.75rem; border-top: 1px solid #e0e0e0;">
+        <p style="color: #5f6368; font-size: 0.8rem;">
             AI Content Generator & Analytics | Powered by Gemini AI | © 2025
         </p>
     </div>
