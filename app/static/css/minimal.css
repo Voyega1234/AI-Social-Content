@@ -1,0 +1,448 @@
+/* Notion-like minimal theme */
+:root {
+    --background-color: #ffffff;
+    --secondary-background-color: #f7f7f7;
+    --primary-color: #000000;
+    --accent-color: #0070f3;
+    --text-color: #37352f;
+    --light-text-color: #6b7280;
+    --widget-background-color: #ffffff;
+    --widget-border-color: #e0e0e0;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+/* Global styles */
+body {
+    font-family: var(--font-family);
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+/* Main container styling */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    max-width: 100%;
+}
+
+/* Header styling */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+h1 {
+    font-size: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--widget-border-color);
+    margin-bottom: 1.5rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+}
+
+h3 {
+    font-size: 1.25rem;
+}
+
+p {
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+/* Style for text areas and input boxes */
+.stTextArea, .stTextInput {
+    background-color: var(--widget-background-color);
+    color: var(--text-color);
+    border: 1px solid var(--widget-border-color);
+    border-radius: 4px;
+    box-shadow: none;
+    transition: all 0.2s ease;
+}
+
+.stTextArea:focus, .stTextInput:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.1);
+}
+
+/* Style for selectbox */
+.stSelectbox {
+    border-radius: 4px;
+}
+
+.stSelectbox > div > div {
+    background-color: var(--widget-background-color);
+    border: 1px solid var(--widget-border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+}
+
+/* Style for expanders */
+.streamlit-expanderHeader {
+    background-color: var(--secondary-background-color);
+    color: var(--text-color);
+    border-radius: 4px;
+    padding: 0.75rem;
+    font-weight: 500;
+    border-left: none;
+    transition: all 0.2s ease;
+}
+
+.streamlit-expanderHeader:hover {
+    background-color: #f0f0f0;
+}
+
+/* Style for the content inside expanders */
+.streamlit-expanderContent {
+    background-color: var(--widget-background-color);
+    border: 1px solid var(--widget-border-color);
+    border-radius: 0 0 4px 4px;
+    padding: 1rem;
+    margin-top: -4px;
+    box-shadow: none;
+}
+
+/* Style for metrics */
+.stMetric {
+    background-color: var(--secondary-background-color);
+    border-radius: 4px;
+    padding: 1rem;
+    border: 1px solid var(--widget-border-color);
+    box-shadow: none;
+    transition: all 0.2s ease;
+}
+
+.stMetric:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stMetric label {
+    color: var(--light-text-color);
+    font-weight: 500;
+}
+
+.stMetric [data-testid="stMetricValue"] {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.stMetric [data-testid="stMetricDelta"] {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Style for dataframes */
+.stDataFrame {
+    background-color: var(--widget-background-color);
+    border-radius: 4px;
+    box-shadow: none;
+    padding: 0.25rem;
+    border: 1px solid var(--widget-border-color);
+}
+
+.stDataFrame [data-testid="stTable"] {
+    border-radius: 4px;
+}
+
+.stDataFrame th {
+    background-color: var(--secondary-background-color);
+    color: var(--light-text-color);
+    font-weight: 500;
+}
+
+.stDataFrame td {
+    background-color: var(--widget-background-color);
+    color: var(--text-color);
+}
+
+/* Style for tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: var(--secondary-background-color);
+    border-radius: 4px 4px 0 0;
+    padding: 0.25rem 0.25rem 0 0.25rem;
+    gap: 0.25rem;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: var(--light-text-color);
+    border-radius: 4px 4px 0 0;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.stTabs [data-baseweb="tab-panel"] {
+    background-color: var(--widget-background-color);
+    border: 1px solid var(--widget-border-color);
+    border-radius: 0 0 4px 4px;
+    padding: 1rem;
+}
+
+/* Style for buttons */
+.stButton > button {
+    background-color: var(--widget-background-color);
+    color: var(--text-color);
+    border: 1px solid var(--widget-border-color);
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    box-shadow: none;
+    transition: all 0.2s ease;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.stButton > button:hover {
+    background-color: var(--secondary-background-color);
+    border-color: var(--light-text-color);
+}
+
+/* Primary button style */
+.stButton > button[kind="primary"] {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background-color: #0060df;
+}
+
+/* Style for sidebar */
+.css-1d391kg, .css-1wrcr25 {
+    background-color: var(--secondary-background-color);
+}
+
+/* Style for sliders */
+.stSlider [data-baseweb="slider"] {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.stSlider [data-baseweb="slider"] [data-testid="stThumbValue"] {
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: 500;
+}
+
+/* Style for radio buttons */
+.stRadio [data-testid="stRadio"] > div {
+    gap: 0.25rem;
+}
+
+.stRadio [data-testid="stRadio"] label {
+    background-color: var(--secondary-background-color);
+    border: 1px solid var(--widget-border-color);
+    border-radius: 4px;
+    padding: 0.25rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.stRadio [data-testid="stRadio"] label:hover {
+    background-color: #f0f0f0;
+}
+
+/* Style for checkboxes */
+.stCheckbox [data-testid="stCheckbox"] > div {
+    background-color: var(--secondary-background-color);
+    border-radius: 4px;
+    padding: 0.25rem;
+}
+
+/* Style for dividers */
+hr {
+    border-color: var(--widget-border-color);
+    margin: 1.5rem 0;
+}
+
+/* Style for tooltips */
+.stTooltipIcon {
+    color: var(--light-text-color);
+}
+
+/* Style for warnings and errors */
+.stAlert {
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    border-left: 2px solid;
+}
+
+.stAlert[data-baseweb="notification"] {
+    background-color: var(--secondary-background-color);
+}
+
+.stAlert[kind="success"] {
+    border-left-color: #10B981;
+}
+
+.stAlert[kind="info"] {
+    border-left-color: var(--accent-color);
+}
+
+.stAlert[kind="warning"] {
+    border-left-color: #F59E0B;
+}
+
+.stAlert[kind="error"] {
+    border-left-color: #EF4444;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.generated-content {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* App header */
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--widget-border-color);
+}
+
+.app-logo {
+    font-size: 2rem;
+    color: var(--accent-color);
+}
+
+.app-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0;
+    padding: 0;
+    border: none;
+    letter-spacing: -0.02em;
+}
+
+.app-subtitle {
+    font-size: 1rem;
+    color: var(--light-text-color);
+    margin: 0;
+    padding: 0;
+}
+
+/* Sidebar header */
+.sidebar-header {
+    margin-bottom: 2rem;
+}
+
+.sidebar-logo {
+    font-size: 1.5rem;
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0;
+    padding: 0;
+    letter-spacing: -0.02em;
+}
+
+.sidebar-subtitle {
+    font-size: 0.875rem;
+    color: var(--light-text-color);
+    margin: 0;
+    padding: 0;
+}
+
+/* App footer */
+.app-footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--widget-border-color);
+    text-align: center;
+}
+
+.footer-text {
+    font-size: 0.875rem;
+    color: var(--light-text-color);
+}
+
+/* Card-like containers */
+.notion-card {
+    background-color: var(--widget-background-color);
+    border: 1px solid var(--widget-border-color);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.notion-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Callout boxes */
+.notion-callout {
+    display: flex;
+    padding: 1rem;
+    border-radius: 4px;
+    background-color: var(--secondary-background-color);
+    margin: 1rem 0;
+    align-items: flex-start;
+}
+
+.notion-callout-emoji {
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+    line-height: 1.5;
+}
+
+.notion-callout-content {
+    flex: 1;
+}
+
+/* Code blocks */
+.notion-code {
+    background-color: #f6f8fa;
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.875rem;
+    overflow-x: auto;
+}
+
+/* Toggle lists */
+.notion-toggle {
+    margin: 0.5rem 0;
+}
+
+.notion-toggle-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.notion-toggle-icon {
+    margin-right: 0.5rem;
+}
+
+.notion-toggle-content {
+    margin-left: 1.5rem;
+    padding-top: 0.5rem;
+} 

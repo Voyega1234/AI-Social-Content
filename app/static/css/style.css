@@ -1,0 +1,393 @@
+/* Set minimal theme colors - Notion-inspired */
+:root {
+    --background-color: #ffffff;
+    --secondary-background-color: #f7f7f7;
+    --primary-color: #37352f;
+    --accent-color: #e9e9e7;
+    --text-color: #37352f;
+    --secondary-text-color: #6b6b6b;
+    --widget-background-color: #ffffff;
+    --widget-border-color: #e0e0e0;
+    --highlight-color: #f0f0f0;
+    --button-color: #f0f0f0;
+    --button-text-color: #37352f;
+    --button-hover-color: #e0e0e0;
+    --sidebar-color: #fbfbfa;
+}
+
+/* Main container styling */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    max-width: 100%;
+}
+
+/* Typography */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol" !important;
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-color) !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.75rem !important;
+    letter-spacing: -0.02em;
+}
+
+h1 {
+    font-size: 1.875rem !important;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--widget-border-color);
+    margin-bottom: 1.5rem !important;
+}
+
+h2 {
+    font-size: 1.5rem !important;
+}
+
+h3 {
+    font-size: 1.25rem !important;
+}
+
+p, li, label, div {
+    color: var(--text-color);
+}
+
+/* Style for text areas and input boxes */
+.stTextArea, .stTextInput {
+    background-color: var(--widget-background-color) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--widget-border-color) !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.stTextArea:focus, .stTextInput:focus {
+    border-color: var(--secondary-text-color) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Style for selectbox */
+.stSelectbox {
+    border-radius: 3px !important;
+}
+
+.stSelectbox > div > div {
+    background-color: var(--widget-background-color) !important;
+    border: 1px solid var(--widget-border-color) !important;
+    border-radius: 3px !important;
+    color: var(--text-color) !important;
+}
+
+/* Style for expanders */
+.streamlit-expanderHeader {
+    background-color: var(--secondary-background-color) !important;
+    color: var(--text-color) !important;
+    border-radius: 3px !important;
+    padding: 0.75rem !important;
+    font-weight: 500 !important;
+    border-left: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.streamlit-expanderHeader:hover {
+    background-color: var(--highlight-color) !important;
+}
+
+/* Style for the content inside expanders */
+.streamlit-expanderContent {
+    background-color: var(--widget-background-color) !important;
+    border: 1px solid var(--widget-border-color) !important;
+    border-radius: 0 0 3px 3px !important;
+    padding: 1rem !important;
+    margin-top: -4px !important;
+    box-shadow: none !important;
+}
+
+/* Style for metrics */
+.stMetric {
+    background-color: var(--secondary-background-color) !important;
+    border-radius: 3px !important;
+    padding: 0.75rem !important;
+    border: 1px solid var(--widget-border-color) !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.stMetric:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03) !important;
+}
+
+.stMetric label {
+    color: var(--secondary-text-color) !important;
+    font-weight: 500 !important;
+}
+
+.stMetric [data-testid="stMetricValue"] {
+    font-size: 1.75rem !important;
+    font-weight: 600 !important;
+    color: var(--primary-color) !important;
+}
+
+.stMetric [data-testid="stMetricDelta"] {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+}
+
+/* Style for dataframes */
+.stDataFrame {
+    background-color: var(--widget-background-color) !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+    padding: 0.25rem !important;
+    border: 1px solid var(--widget-border-color) !important;
+}
+
+.stDataFrame [data-testid="stTable"] {
+    border-radius: 3px !important;
+}
+
+.stDataFrame th {
+    background-color: var(--secondary-background-color) !important;
+    color: var(--secondary-text-color) !important;
+    font-weight: 500 !important;
+}
+
+.stDataFrame td {
+    background-color: var(--widget-background-color) !important;
+    color: var(--text-color) !important;
+}
+
+/* Style for tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: var(--secondary-background-color) !important;
+    border-radius: 3px 3px 0 0 !important;
+    padding: 0.25rem 0.25rem 0 0.25rem !important;
+    gap: 0.25rem !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: var(--secondary-text-color) !important;
+    border-radius: 3px 3px 0 0 !important;
+    padding: 0.5rem 0.75rem !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: var(--highlight-color) !important;
+    color: var(--primary-color) !important;
+    font-weight: 600 !important;
+}
+
+.stTabs [data-baseweb="tab-panel"] {
+    background-color: var(--widget-background-color) !important;
+    border: 1px solid var(--widget-border-color) !important;
+    border-radius: 0 0 3px 3px !important;
+    padding: 1rem !important;
+}
+
+/* Style for buttons */
+.stButton > button {
+    background-color: var(--button-color) !important;
+    color: var(--button-text-color) !important;
+    border: none !important;
+    border-radius: 3px !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+
+.stButton > button:hover {
+    background-color: var(--button-hover-color) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Style for sidebar */
+.css-1d391kg, .css-1wrcr25 {
+    background-color: var(--sidebar-color) !important;
+}
+
+/* Style for sliders */
+.stSlider [data-baseweb="slider"] {
+    margin-top: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.stSlider [data-baseweb="slider"] [data-testid="stThumbValue"] {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    font-weight: 500 !important;
+}
+
+/* Style for radio buttons */
+.stRadio [data-testid="stRadio"] > div {
+    gap: 0.25rem !important;
+}
+
+.stRadio [data-testid="stRadio"] label {
+    background-color: var(--secondary-background-color) !important;
+    border: 1px solid var(--widget-border-color) !important;
+    border-radius: 3px !important;
+    padding: 0.25rem 0.75rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.stRadio [data-testid="stRadio"] label:hover {
+    background-color: var(--highlight-color) !important;
+}
+
+/* Style for checkboxes */
+.stCheckbox [data-testid="stCheckbox"] > div {
+    background-color: var(--secondary-background-color) !important;
+    border-radius: 3px !important;
+    padding: 0.25rem !important;
+}
+
+/* Style for dividers */
+hr {
+    border-color: var(--widget-border-color) !important;
+    margin: 1.5rem 0 !important;
+}
+
+/* Style for tooltips */
+.stTooltipIcon {
+    color: var(--secondary-text-color) !important;
+}
+
+/* Style for warnings and errors */
+.stAlert {
+    border-radius: 3px !important;
+    padding: 0.75rem !important;
+    margin: 0.75rem 0 !important;
+    border-left: 2px solid !important;
+}
+
+.stAlert[data-baseweb="notification"] {
+    background-color: var(--secondary-background-color) !important;
+}
+
+.stAlert[kind="success"] {
+    border-left-color: #2e7d32 !important;
+}
+
+.stAlert[kind="info"] {
+    border-left-color: #0288d1 !important;
+}
+
+.stAlert[kind="warning"] {
+    border-left-color: #ed6c02 !important;
+}
+
+.stAlert[kind="error"] {
+    border-left-color: #d32f2f !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.generated-content {
+    animation: fadeIn 0.5s ease-in-out;
+    padding: 0.5rem;
+}
+
+/* App header styling */
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--widget-border-color);
+}
+
+.app-logo {
+    font-size: 2rem;
+    color: var(--primary-color);
+    background-color: var(--accent-color);
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+.app-title {
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: var(--primary-color) !important;
+    border: none !important;
+}
+
+.app-subtitle {
+    font-size: 0.875rem !important;
+    color: var(--secondary-text-color) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Sidebar styling */
+.sidebar-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-logo {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    background-color: var(--accent-color);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-title {
+    font-size: 1.25rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: var(--primary-color) !important;
+    text-align: center;
+}
+
+.sidebar-subtitle {
+    font-size: 0.75rem !important;
+    color: var(--secondary-text-color) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: center;
+}
+
+/* Footer styling */
+.app-footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--widget-border-color);
+    text-align: center;
+}
+
+.footer-text {
+    font-size: 0.75rem;
+    color: var(--secondary-text-color);
+} 
