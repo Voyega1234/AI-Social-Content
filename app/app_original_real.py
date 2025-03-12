@@ -178,6 +178,11 @@ def content_generator_page():
             reference_content = pd.DataFrame()
             business_details = {}
     
+    # Create a clean card-like container for the main form
+    st.markdown("""
+    <div style="background-color: #ffffff; padding: 1.5rem; border-radius: 4px; margin-bottom: 1.5rem; border: 1px solid var(--widget-border-color);">
+    """, unsafe_allow_html=True)
+    
     # Input fields
     col1, col2 = st.columns(2)
     
@@ -224,7 +229,9 @@ def content_generator_page():
         # Add a note about multiple variations
         st.info("We'll generate 3 different content variations for you to choose from.")
     
-    # Product selection section
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Product selection section in a clean card
     with st.expander("Product Information", expanded=False):
         # Initialize session state for products if it doesn't exist
         if 'products' not in st.session_state or st.session_state.get('current_business') != selected_business:
@@ -435,27 +442,259 @@ def content_generator_page():
             st.warning(f"Could not fetch business details: {e}")
             business_details = {}
     
-    # Display business details for learning
+    # Display business details for learning in a clean card
     if business_details:
         with st.expander("Business Details for AI Learning", expanded=False):
-            st.subheader(f"About {selected_business_name}")
+            st.markdown(f"""
+            <div style="background-color: white; padding: 1rem; border-radius: 4px; border: 1px solid var(--widget-border-color); margin-bottom: 1rem;">
+                <h3 style="font-size: 1.2rem; margin-bottom: 1rem;">About {selected_business_name}</h3>
+            """, unsafe_allow_html=True)
             
             # Display basic business info
             if 'business_description' in business_details and business_details['business_description']:
-                st.markdown("**Business Description:**")
-                st.write(business_details['business_description'])
+                st.markdown(f"""
+                <p style="font-weight: 500; margin-bottom: 0.5rem;">Business Description:</p>
+                <p style="margin-bottom: 1rem;">{business_details['business_description']}</p>
+                """, unsafe_allow_html=True)
             
             # Display metrics if available
             if 'metrics' in business_details:
-                st.markdown("**Content Performance Metrics:**")
+                st.markdown("<p style='font-weight: 500; margin-bottom: 0.5rem;'>Content Performance Metrics:</p>", unsafe_allow_html=True)
                 metrics_df = pd.DataFrame(business_details['metrics'])
                 st.dataframe(metrics_df)
             
             # Display common hashtags
             if 'common_hashtags' in business_details:
-                st.markdown("**Commonly Used Hashtags:**")
                 hashtags_list = [h['hashtags'] for h in business_details['common_hashtags']]
-                st.write(", ".join(hashtags_list))
+                st.markdown(f"""
+                <p style="font-weight: 500; margin-top: 1rem; margin-bottom: 0.5rem;">Commonly Used Hashtags:</p>
+                <p style="font-family: monospace;">{", ".join(hashtags_list)}</p>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Generate button in a centered container
+    st.markdown("""
+    <div style="display: flex; justify-content: center; margin: 2rem 0;">
+    """, unsafe_allow_html=True)
+    
+    if st.button("Generate Content", use_container_width=True):
+        if not selected_business:
+            st.warning("Please select or enter a Business.")
+            return
+        
+        client = get_gemini_client()
+        if not client:
+            return
+        
+        with st.spinner("Generating content..."):
+            try:
+                # Prepare business context from details
+                business_context = ""
+                if business_details:
+                    business_context = f"""
+                    Business Name: {selected_business_name}
+                    """
+                    
+                    if 'business_description' in business_details and business_details['business_description']:
+                        business_context += f"""
+                        Business Description: {business_details['business_description']}
+                        """
+                    
+                    if 'common_hashtags' in business_details:
+                        hashtags_list = [h['hashtags'] for h in business_details['common_hashtags']]
+                        business_context += f"""
+                        Commonly Used Hashtags: {', '.join(hashtags_list)}
+                        """
+                
+                # Prepare product context
+                product_context = ""
+                final_product = selected_product if selected_product else custom_product
+                
+                if final_product:
+                    product_context = f"""
+                    Product/Service: {final_product}
+                    """
+                    
+                    if product_description:
+                        product_context += f"""
+                        Product Description: {product_description}
+                        """
+                else:
+                    # If no product specified, instruct AI to reference popular products
+                    product_context = """
+                    No specific product selected. Please reference popular products or services from the business 
+                    based on the reference content or business information.
+                    """
+                
+                # Get reference content if available
+                reference_text = ""
+                if not reference_content.empty:
+                    # Filter for business-specific content first
+                    business_specific = reference_content[reference_content['business_id'] == selected_business]
+                    
+                    # Prepare reference text from all available content
+                    reference_text = "Reference from popular content:\n\n"
+                    
+                    # Add business-specific content first (more relevant)
+                    if not business_specific.empty:
+                        reference_text += "Business-specific content:\n"
+                        for i, row in business_specific.head(3).iterrows():  # Limit to top 3 for prompt size
+                            reference_text += f"""
+                            Platform: {row['platform']}
+                            Content Type: {row['content_type']}
+                            Content: {row['full_content']}
+                            Hashtags: {row['hashtags'] if pd.notna(row['hashtags']) else ''}
+                            ---
+                            """
+                    
+                    # Add general popular content
+                    general_content = reference_content[reference_content['business_id'] != selected_business]
+                    if not general_content.empty:
+                        reference_text += "\nGeneral popular content:\n"
+                        for i, row in general_content.head(2).iterrows():  # Limit to top 2 for prompt size
+                            reference_text += f"""
+                            Platform: {row['platform']}
+                            Content Type: {row['content_type']}
+                            Content: {row['full_content']}
+                            Hashtags: {row['hashtags'] if pd.notna(row['hashtags']) else ''}
+                            ---
+                            """
+                    
+                    # Add instruction for AI
+                    reference_text += """
+                    Learn from these examples to create content that matches the style and tone,
+                    but create something unique and original.
+                    """
+                
+                # Prepare style/mood/tone context
+                style_context = ""
+                if content_preferences:
+                    style_context = f"Content Preferences: {content_preferences}"
+                else:
+                    style_context = "Content Preferences: Match the brand's existing style and tone"
+                
+                # Language instruction
+                language_instruction = ""
+                if language == "Thai":
+                    language_instruction = "Generate the content in Thai language only."
+                elif language == "English":
+                    language_instruction = "Generate the content in English language only."
+                elif language == "Mixed Thai-English":
+                    language_instruction = "Generate the content in a mix of Thai and English languages, with Thai being the primary language."
+                
+                # Prepare base prompt
+                base_prompt = f"""
+                {language_instruction}
+                
+                Generate social media content for {platform} as a {content_type}.
+                {style_context}
+                
+                Business Information:
+                {business_context}
+                
+                {product_context}
+                
+                Additional context: {additional_context}
+                
+                Include relevant hashtags based on: {hashtags_input}
+                
+                Make the content engaging and optimized for the platform.
+                
+                {reference_text}
+                """
+                
+                # Create 3 different variations with different styles
+                variation_prompts = [
+                    base_prompt + "\nCreate content that is professional and informative.",
+                    base_prompt + "\nCreate content that is casual and friendly.",
+                    base_prompt + "\nCreate content that is creative and engaging."
+                ]
+                
+                # Call Gemini API for each variation
+                try:
+                    generated_contents = []
+                    extracted_hashtags_list = []
+                    
+                    for i, prompt in enumerate(variation_prompts):
+                        with st.spinner(f"Generating variation {i+1}..."):
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=prompt
+                            )
+                            
+                            # Store generated content
+                            generated_content = response.text
+                            generated_contents.append(generated_content)
+                            
+                            # Extract hashtags if present
+                            variation_hashtags = hashtags_input
+                            if not variation_hashtags and "#" in generated_content:
+                                # Try to extract hashtags from the generated content
+                                potential_hashtags = [word.strip() for word in generated_content.split() if word.startswith("#")]
+                                if potential_hashtags:
+                                    variation_hashtags = ",".join([tag.replace("#", "") for tag in potential_hashtags])
+                            
+                            extracted_hashtags_list.append(variation_hashtags)
+                    
+                    # Display content with tabs for each variation
+                    st.subheader("Generated Content Variations:")
+                    
+                    # Create tabs for each variation
+                    tabs = st.tabs([f"Variation {i+1}" for i in range(len(generated_contents))])
+                    
+                    # Display content in each tab
+                    for i, tab in enumerate(tabs):
+                        with tab:
+                            st.markdown(f"""
+                            <div style="background-color: var(--secondary-background-color); padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                                <p style="font-weight: 500; margin-bottom: 0.5rem;">Style: {'Professional & Informative' if i == 0 else 'Casual & Friendly' if i == 1 else 'Creative & Engaging'}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Replace newlines with <br> tags before inserting into the f-string
+                            formatted_content = generated_contents[i].replace('\n', '<br>')
+                            
+                            st.markdown(f"""
+                            <div style="background-color: white; padding: 1.5rem; border-radius: 4px; border: 1px solid var(--widget-border-color); margin-bottom: 1rem;">
+                                {formatted_content}
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Display extracted hashtags if any
+                            if extracted_hashtags_list[i]:
+                                st.markdown(f"""
+                                <div style="background-color: var(--secondary-background-color); padding: 1rem; border-radius: 4px;">
+                                    <p style="font-weight: 500; margin-bottom: 0.5rem;">Hashtags:</p>
+                                    <p style="font-family: monospace;">{extracted_hashtags_list[i]}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                    
+                    # Display note about read-only mode
+                    st.info("This application is in read-only mode. Content cannot be saved to the database.")
+                
+                except Exception as e:
+                    if "503" in str(e) or "UNAVAILABLE" in str(e):
+                        st.error("""
+                        ### Gemini AI Service Temporarily Unavailable
+                        
+                        The AI service is currently experiencing high demand or maintenance. Please try again in a few minutes.
+                        
+                        **Alternative options:**
+                        - Try refreshing the page
+                        - Try a different browser
+                        - Check your internet connection
+                        - Try again later when the service load may be lower
+                        
+                        Technical details: {e}
+                        """)
+                    else:
+                        st.error(f"Error calling AI service: {e}")
+                
+            except Exception as e:
+                st.error(f"Error preparing content generation: {e}")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
     
     # Add a control for the number of reference content items
     st.sidebar.subheader("AI Learning Settings")
@@ -1557,159 +1796,73 @@ def image_creator_page():
     with image_tab:
         st.subheader("Create Image with Ideogram")
         
-        # Add a helpful guide at the top
-        with st.expander("📝 How to Use This Image Generator", expanded=False):
-            st.markdown("""
-            ### Understanding the Image Generation Process
-            
-            1. **Prompt**: This is the text description that tells the AI what to create. Be specific about what you want to see in the image.
-            
-            2. **Negative Prompt**: This tells the AI what NOT to include in your image (e.g., "blurry images, distorted faces").
-            
-            3. **Image Style**: Choose a predefined style like "Realistic" or "Anime" to influence the overall look.
-            
-            4. **Aspect Ratio**: Select the shape of your image (square, landscape, portrait, etc.).
-            
-            5. **Generate Button**: Click this when you're ready to create your image.
-            
-            **Tips for Better Results:**
-            - Be specific and detailed in your prompt
-            - Use negative prompts to avoid unwanted elements
-            - Try different styles if you're not happy with the results
-            """)
-        
         # Check if we have a prompt from the concept tab
         if 'ideogram_prompt' in st.session_state:
-            # Create a visually distinct card for the prompt section
-            st.markdown("""
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-            """, unsafe_allow_html=True)
-            
-            # Display the prompt from the concept tab with a clearer heading
-            st.markdown("""
-            <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">📋 Generated Prompt</h3>
-            <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">This is the AI-generated description that will be used to create your image:</p>
-            """, unsafe_allow_html=True)
-            
+            # Display the prompt from the concept tab
+            st.markdown("### Generated Prompt")
             st.markdown(f"""
-            <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; margin-bottom: 15px;">
-                <p style="font-family: monospace; margin: 0; white-space: pre-wrap;">{st.session_state.ideogram_prompt}</p>
+            <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                <p style="font-family: monospace; margin: 0;">{st.session_state.ideogram_prompt}</p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Allow editing the prompt with clearer instructions
-            st.markdown("""
-            <h4 style="margin-bottom: 5px; font-size: 1rem;">✏️ Edit Prompt (if needed)</h4>
-            <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">You can modify the text below to change what appears in your image:</p>
-            """, unsafe_allow_html=True)
-            
+            # Allow editing the prompt
             edited_prompt = st.text_area(
-                "",
+                "Edit Prompt (if needed)",
                 value=st.session_state.ideogram_prompt,
-                height=100,
-                key="edit_prompt_input",
-                help="This is an editable text area. Make changes to the prompt here if you want to customize the image generation."
+                height=100
             )
             
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # Create a visually distinct card for the negative prompt section
-            st.markdown("""
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-            """, unsafe_allow_html=True)
-            
-            # Display negative prompt if available with clearer heading
+            # Display negative prompt if available
             if 'negative_prompt' in st.session_state and st.session_state.negative_prompt:
-                st.markdown("""
-                <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">🚫 Negative Prompt</h3>
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">These elements will be avoided in your generated image:</p>
-                """, unsafe_allow_html=True)
-                
+                st.markdown("### Negative Prompt")
                 st.markdown(f"""
-                <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; margin-bottom: 15px;">
-                    <p style="font-family: monospace; margin: 0; white-space: pre-wrap;">{st.session_state.negative_prompt}</p>
+                <div style="background-color: #fff0f0; padding: 15px; border-radius: 5px; border-left: 5px solid #EA4335;">
+                    <p style="font-family: monospace; margin: 0;">{st.session_state.negative_prompt}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Allow editing the negative prompt with clearer instructions
-                st.markdown("""
-                <h4 style="margin-bottom: 5px; font-size: 1rem;">✏️ Edit Negative Prompt (if needed)</h4>
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">You can modify what elements should be avoided in your image:</p>
-                """, unsafe_allow_html=True)
-                
+                # Allow editing the negative prompt
                 edited_negative_prompt = st.text_area(
-                    "",
+                    "Edit Negative Prompt (if needed)",
                     value=st.session_state.negative_prompt,
-                    height=100,
-                    key="edit_negative_prompt_input",
-                    help="This is an editable text area. Add things you DON'T want to see in your image."
+                    height=100
                 )
             else:
-                st.markdown("""
-                <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">🚫 Negative Prompt (Optional)</h3>
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">Specify elements you want to avoid in your image:</p>
-                """, unsafe_allow_html=True)
-                
                 edited_negative_prompt = st.text_area(
-                    "",
-                    placeholder="Example: blurry images, distorted faces, text, watermarks, unrealistic proportions",
-                    height=100,
-                    key="negative_prompt_input",
-                    help="This is an editable text area. Add things you DON'T want to see in your image."
+                    "Negative Prompt (Optional)",
+                    placeholder="Specify elements to avoid in the image, e.g., 'blurry, distorted faces, text, watermarks'",
+                    height=100
                 )
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # Create a visually distinct card for the image settings
-            st.markdown("""
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem;">⚙️ Image Settings</h3>
-            """, unsafe_allow_html=True)
             
             # Image style and aspect ratio options
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("""
-                <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose an artistic style for your image:</p>
-                """, unsafe_allow_html=True)
-                
                 style_options = get_ideogram_styles()
                 style_display = ["None"] + list(style_options.keys())
                 style_selected = st.selectbox(
                     "Image Style",
                     style_display,
-                    index=1,
-                    help="Select a style to influence how your image looks. 'None' uses the default style."
+                    index=1
                 )
                 style = None if style_selected == "None" else style_options[style_selected]
             
             with col2:
-                st.markdown("""
-                <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose the shape/dimensions of your image:</p>
-                """, unsafe_allow_html=True)
-                
                 aspect_ratio_options = get_ideogram_aspect_ratios()
                 aspect_ratio_selected = st.selectbox(
                     "Aspect Ratio",
                     list(aspect_ratio_options.keys()),
-                    index=0,
-                    help="Select the shape of your image. Square (1:1) is good for social media posts. Landscape (16:9) is good for wide images."
+                    index=0
                 )
                 aspect_ratio = aspect_ratio_options[aspect_ratio_selected]
-            
-            st.markdown("</div>", unsafe_allow_html=True)
             
             # Number of images is fixed to 1 (hidden from user)
             num_images = 1
             
-            # Generate image button with more prominence
-            st.markdown("""
-            <div style="text-align: center; margin: 30px 0;">
-            """, unsafe_allow_html=True)
-            
-            if st.button("🖼️ Generate Image", use_container_width=True, key="generate_button"):
-                with st.spinner("Creating your image with AI... This may take a moment."):
+            # Generate image button
+            if st.button("Generate Image with Ideogram"):
+                with st.spinner("Generating image with Ideogram..."):
                     # Call Ideogram API
                     response = generate_image_with_ideogram(
                         prompt=edited_prompt,
@@ -1720,151 +1873,90 @@ def image_creator_page():
                     )
                     
                     if response:
-                        st.success("✅ Image generated successfully!")
+                        st.success("Image generated successfully!")
                         
                         # Store the response in session state
                         st.session_state.ideogram_response = response
                         
                         # Display the generated images
                         display_ideogram_images(response)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
         else:
-            # If no prompt is available, show a clearer message with options
+            # If no prompt is available, show a message
             st.info("""
-            ### No prompt available yet
+            **No prompt available yet.**
             
-            You need to create a prompt before generating an image. You can:
+            Please go to the "Generate Concept" tab first to create an image concept.
+            The generated prompt will be automatically transferred here for image creation.
             
-            1. **Go to the "Generate Concept" tab** first to create an image concept automatically
-            2. **OR** enter a prompt manually below
-            3. **OR** upload a reference image to analyze
+            Alternatively, you can upload a reference image, analyze it, and create a prompt manually.
             """)
-            
-            # Create a visually distinct card for manual prompt entry
-            st.markdown("""
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-            <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">✏️ Enter a Prompt Manually</h3>
-            <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">Describe what you want to see in your image:</p>
-            """, unsafe_allow_html=True)
             
             # Allow manual prompt entry if no concept is available
             manual_prompt = st.text_area(
-                "",
-                placeholder="Example: A serene landscape with mountains and a lake at sunset, with warm golden light, reflections in the water, and small birds flying in the distance",
-                height=120,
-                help="This is where you describe what you want in your image. Be detailed and specific for best results."
+                "Or enter a prompt manually",
+                placeholder="Enter a detailed description of the image you want to generate...",
+                height=100
             )
-            
-            st.markdown("</div>", unsafe_allow_html=True)
             
             if manual_prompt:
                 # Display reference image description if available from the image tab
                 if 'image_tab_reference_description' in st.session_state:
-                    st.markdown("""
-                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-                    <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">🖼️ Reference Image Description</h3>
-                    <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">Description of your uploaded reference image:</p>
-                    """, unsafe_allow_html=True)
-                    
+                    st.markdown("### Reference Image Description")
                     st.markdown(f"""
-                    <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0;">
-                        <p style="font-family: monospace; margin: 0; white-space: pre-wrap;">{st.session_state.image_tab_reference_description}</p>
+                    <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                        <p style="font-family: monospace; margin: 0;">{st.session_state.image_tab_reference_description}</p>
                     </div>
                     """, unsafe_allow_html=True)
-                    
-                    # Add checkbox to include reference image description in the prompt
-                    include_reference = st.checkbox(
-                        "Include reference image description in the prompt", 
-                        value=True,
-                        help="Check this to combine your prompt with the reference image description"
-                    )
-                    
+                
+                # Add checkbox to include reference image description in the prompt
+                include_reference = False
+                if 'image_tab_reference_description' in st.session_state:
+                    include_reference = st.checkbox("Include reference image description in the prompt", value=True)
                     if include_reference:
                         # Combine the prompt with the reference description
                         combined_prompt = f"{manual_prompt}. Reference: {st.session_state.image_tab_reference_description}"
-                        
-                        st.markdown("""
-                        <h4 style="margin-top: 15px; margin-bottom: 10px; font-size: 1rem;">Combined Prompt</h4>
-                        <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">This is what will be sent to the AI:</p>
-                        """, unsafe_allow_html=True)
-                        
+                        st.markdown("### Combined Prompt")
                         st.markdown(f"""
-                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0;">
-                            <p style="font-family: monospace; margin: 0; white-space: pre-wrap;">{combined_prompt}</p>
+                        <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                            <p style="font-family: monospace; margin: 0;">{combined_prompt}</p>
                         </div>
                         """, unsafe_allow_html=True)
-                    
-                    st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Create a visually distinct card for the negative prompt
-                st.markdown("""
-                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-                <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">🚫 Negative Prompt (Optional)</h3>
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">Specify elements you want to avoid in your image:</p>
-                """, unsafe_allow_html=True)
                 
                 # Negative prompt
                 manual_negative_prompt = st.text_area(
-                    "",
-                    placeholder="Example: blurry, distorted faces, text, watermarks, unrealistic proportions",
-                    height=100,
-                    help="List things you DON'T want to see in your image"
+                    "Negative Prompt (Optional)",
+                    placeholder="Specify elements to avoid in the image, e.g., 'blurry, distorted faces, text, watermarks'",
+                    height=100
                 )
-                
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Create a visually distinct card for the image settings
-                st.markdown("""
-                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-                <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem;">⚙️ Image Settings</h3>
-                """, unsafe_allow_html=True)
                 
                 # Image style and aspect ratio options
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("""
-                    <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose an artistic style for your image:</p>
-                    """, unsafe_allow_html=True)
-                    
                     style_options = get_ideogram_styles()
                     style_display = ["None"] + list(style_options.keys())
                     style_selected = st.selectbox(
                         "Image Style",
                         style_display,
-                        index=1,
-                        help="Select a style to influence how your image looks. 'None' uses the default style."
+                        index=1
                     )
                     style = None if style_selected == "None" else style_options[style_selected]
                 
                 with col2:
-                    st.markdown("""
-                    <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose the shape/dimensions of your image:</p>
-                    """, unsafe_allow_html=True)
-                    
                     aspect_ratio_options = get_ideogram_aspect_ratios()
                     aspect_ratio_selected = st.selectbox(
                         "Aspect Ratio",
                         list(aspect_ratio_options.keys()),
-                        index=0,
-                        help="Select the shape of your image. Square (1:1) is good for social media posts. Landscape (16:9) is good for wide images."
+                        index=0
                     )
                     aspect_ratio = aspect_ratio_options[aspect_ratio_selected]
-                
-                st.markdown("</div>", unsafe_allow_html=True)
                 
                 # Number of images is fixed to 1 (hidden from user)
                 num_images = 1
                 
-                # Generate image button with more prominence
-                st.markdown("""
-                <div style="text-align: center; margin: 30px 0;">
-                """, unsafe_allow_html=True)
-                
-                if st.button("🖼️ Generate Image", use_container_width=True, key="generate_manual_button"):
-                    with st.spinner("Creating your image with AI... This may take a moment."):
+                # Generate image button for manual prompt
+                if st.button("Generate Image with Manual Prompt"):
+                    with st.spinner("Generating image with Ideogram..."):
                         # Determine which prompt to use
                         final_prompt = combined_prompt if include_reference and 'image_tab_reference_description' in st.session_state else manual_prompt
                         
@@ -1878,15 +1970,15 @@ def image_creator_page():
                         )
                         
                         if response:
-                            st.success("✅ Image generated successfully!")
+                            st.success("Image generated successfully!")
                             
                             # Store the response in session state
                             st.session_state.ideogram_response = response
                             
                             # Display the generated images
                             display_ideogram_images(response)
-                
-                st.markdown("</div>", unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Ideogram API integration
 def get_ideogram_client():
