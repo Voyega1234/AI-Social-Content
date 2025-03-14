@@ -15,6 +15,7 @@ import warnings
 import uuid
 from datetime import date
 import io
+import re
 
 # Suppress SQLAlchemy warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -1241,15 +1242,17 @@ def image_creator_page():
         1. **Select a Business**: Choose from existing businesses or enter a new one
         2. **Choose Platform**: Select the social media platform for your image
         3. **Describe Your Idea**: Provide a brief description of what you're looking for
-        4. **Generate Concept**: Click the button to create AI-powered image concepts
-        5. **Create Image**: Use the generated prompt to create an actual image with Ideogram
-        6. **Download & Use**: Download the generated images for your social media content
+        4. **Add Color Palette**: Input hex color codes to define your color palette
+        5. **Generate Concept**: Click the button to create AI-powered image concepts
+        6. **Create Image**: Use the generated prompt to create an actual image with Ideogram
+        7. **Download & Use**: Download the generated images for your social media content
         
         **Pro Tips:**
         - Be specific about the mood, style, and elements you want in your image
         - Try different aspect ratios for different platforms (1:1 for Instagram, 16:9 for Twitter)
         - Use negative prompts to avoid unwanted elements in your images
         - Upload reference images to help the AI understand your visual style better
+        - Add specific hex color codes to control the color palette of your generated images
         """)
     
     # Get database connection for fetching business names
@@ -1281,6 +1284,10 @@ def image_creator_page():
     concept_tab, image_tab, storyboard_tab = st.tabs(["Generate Concept", "Create Image", "Create Storyboard"])
     
     with concept_tab:
+        # Initialize session state for color palette if not already there
+        if 'color_palette' not in st.session_state:
+            st.session_state.color_palette = []
+        
         # Input fields
         col1, col2 = st.columns(2)
         
@@ -1307,6 +1314,39 @@ def image_creator_page():
                 "Image Purpose",
                 ["Product Showcase", "Brand Awareness", "Promotion", "Educational", "Lifestyle", "User Generated Content"]
             )
+            
+            # Color Palette Section
+            st.markdown("### Color Palette")
+            st.write("Add hex color codes to define your image color palette. The AI will use these colors in the generated image.")
+            
+            # Color input with validation
+            color_input = st.text_input(
+                "Add Color (Hex Code)",
+                placeholder="e.g., #FF5733 or FF5733",
+                help="Enter a valid hex color code (e.g., #FF5733). You can add multiple colors one by one."
+            )
+            
+            # Add color button
+            if st.button("Add Color") and color_input:
+                if is_valid_hex_color(color_input):
+                    formatted_color = format_hex_color(color_input)
+                    if formatted_color not in st.session_state.color_palette:
+                        st.session_state.color_palette.append(formatted_color)
+                        st.success(f"Added color: {formatted_color}")
+                    else:
+                        st.warning(f"Color {formatted_color} is already in the palette.")
+                else:
+                    st.error(f"Invalid hex color code: {color_input}. Please use format #RRGGBB or #RGB.")
+            
+            # Display current color palette
+            if st.session_state.color_palette:
+                st.markdown("#### Current Color Palette")
+                display_color_palette(st.session_state.color_palette)
+                
+                # Clear palette button
+                if st.button("Clear Color Palette"):
+                    st.session_state.color_palette = []
+                    st.success("Color palette cleared.")
             
             # Multiple reference image upload
             st.markdown("### Reference Images (Optional)")
@@ -1441,14 +1481,25 @@ def image_creator_page():
                         - Realistic and high-quality visual elements
                         """
                     
+                    # Add color palette information to the prompt if available
+                    color_palette_description = ""
+                    if st.session_state.color_palette:
+                        color_palette_description = "Color Palette:\n"
+                        for color in st.session_state.color_palette:
+                            color_palette_description += f"- {color}\n"
+                        
+                        color_palette_description += "\nIMPORTANT: You MUST use EXACTLY these colors in the generated image. The final image should prominently feature these specific hex colors in the design."
+                    
                     prompt = f"""
-                    Create a detailed creative brief for a professional creative design to be used on {platform} for {selected_business_name}.
+                    Create a detailed creative brief for a professional business image to be used on {platform} for {selected_business_name}.
                     
                     Purpose: {image_purpose}
                     
                     Basic concept: {image_concept}
                     
                     Visual style preferences: {visual_style if visual_style else "Not specified"}
+                    
+                    {color_palette_description}
                     
                     {reference_description}
                     
@@ -1475,6 +1526,8 @@ def image_creator_page():
                     Basic concept: {image_concept}
                     
                     Visual style preferences: {visual_style if visual_style else "Not specified"}
+                    
+                    {color_palette_description}
                     
                     {reference_description}
                     
@@ -1515,6 +1568,8 @@ def image_creator_page():
                     Basic concept: {image_concept}
                     
                     Visual style preferences: {visual_style if visual_style else "Not specified"}
+                    
+                    {color_palette_description}
                     
                     {reference_description}
                     
@@ -1910,6 +1965,15 @@ def image_creator_page():
                 )
                 aspect_ratio = aspect_ratio_options[aspect_ratio_selected]
             
+            # Display color palette if available
+            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                st.markdown("""
+                <h4 style="margin-top: 15px; margin-bottom: 10px; font-size: 1rem;">🎨 Color Palette</h4>
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">These colors will be used in your generated image:</p>
+                """, unsafe_allow_html=True)
+                
+                display_color_palette(st.session_state.color_palette)
+            
             st.markdown("</div>", unsafe_allow_html=True)
             
             # Number of images is fixed to 1 (hidden from user)
@@ -1922,6 +1986,26 @@ def image_creator_page():
             
             if st.button("🖼️ Generate Image", use_container_width=True, key="generate_button"):
                 with st.spinner("Creating your image with AI... This may take a moment."):
+                    # Prepare color palette for API if available
+                    color_palette_param = None
+                    if 'color_palette' in st.session_state and st.session_state.color_palette:
+                        # Create color palette with members format
+                        color_palette_param = {
+                            "members": []
+                        }
+                        
+                        # Add each color with decreasing weights
+                        num_colors = len(st.session_state.color_palette)
+                        for i, color in enumerate(st.session_state.color_palette):
+                            # Calculate weight - start with 1.0 and decrease for each color
+                            # Ensure minimum weight is 0.05
+                            weight = max(0.05, 1.0 - (i * (0.95 / max(1, num_colors - 1))))
+                            
+                            color_palette_param["members"].append({
+                                "color_hex": color,
+                                "color_weight": round(weight, 2)  # Round to 2 decimal places
+                            })
+                    
                     # Call Ideogram API
                     response = generate_image_with_ideogram(
                         prompt=edited_prompt,
@@ -1929,7 +2013,8 @@ def image_creator_page():
                         aspect_ratio=aspect_ratio,
                         negative_prompt=edited_negative_prompt if edited_negative_prompt else None,
                         num_images=num_images,
-                        model=selected_model
+                        model=selected_model,
+                        color_palette=color_palette_param
                     )
                     
                     if response:
@@ -2076,6 +2161,15 @@ def image_creator_page():
                     )
                     aspect_ratio = aspect_ratio_options[aspect_ratio_selected]
                 
+                # Display color palette if available
+                if 'color_palette' in st.session_state and st.session_state.color_palette:
+                    st.markdown("""
+                    <h4 style="margin-top: 15px; margin-bottom: 10px; font-size: 1rem;">🎨 Color Palette</h4>
+                    <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">These colors will be used in your generated image:</p>
+                    """, unsafe_allow_html=True)
+                    
+                    display_color_palette(st.session_state.color_palette)
+                
                 st.markdown("</div>", unsafe_allow_html=True)
                 
                 # Number of images is fixed to 1 (hidden from user)
@@ -2203,7 +2297,7 @@ def image_creator_page():
             
             with col2:
                 st.markdown("""
-                <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose the shape/dimensions for all storyboard images:</p>
+                <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose the shape/dimensions of your storyboard:</p>
                 """, unsafe_allow_html=True)
                 
                 aspect_ratio_options = get_ideogram_aspect_ratios()
@@ -2212,9 +2306,18 @@ def image_creator_page():
                     list(aspect_ratio_options.keys()),
                     index=0,
                     key="storyboard_aspect_ratio",
-                    help="Select the shape for all your storyboard images. Square (1:1) works best for storyboards."
+                    help="Select the shape of your storyboard images. Square (1:1) is good for social media posts. Landscape (16:9) is good for wide images."
                 )
                 aspect_ratio = aspect_ratio_options[aspect_ratio_selected]
+            
+            # Display color palette if available
+            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                st.markdown("""
+                <h4 style="margin-top: 15px; margin-bottom: 10px; font-size: 1rem;">🎨 Color Palette</h4>
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">These colors will be used in your storyboard images:</p>
+                """, unsafe_allow_html=True)
+                
+                display_color_palette(st.session_state.color_palette)
             
             # Negative prompt for storyboard
             st.markdown("""
@@ -2255,7 +2358,7 @@ def image_creator_page():
                     else:
                         try:
                             # Prepare prompt for Gemini to generate 4 coordinated image prompts
-                            prompt = f"""
+                            base_prompt = f"""
                             Based on this main concept: "{storyboard_concept}"
                             
                             Create 4 coordinated image prompts that tell a cohesive visual story for professional business use. Each image should include text elements and professional design details.
@@ -2268,7 +2371,52 @@ def image_creator_page():
                             5. Be detailed enough to create professional-looking business content
                             6. CRITICAL: Use EXACTLY the same color palette and visual theme across all 4 images
                             7. Maintain consistent lighting, mood, and stylistic elements throughout the series
+                            """
                             
+                            # Add color palette information to the prompt if available
+                            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                color_palette_str = ", ".join(st.session_state.color_palette)
+                                base_prompt += f"""
+                            8. CRITICAL: Use EXACTLY these specific colors in all images: {color_palette_str}
+                            9. Make sure these exact hex colors are prominently featured in all 4 images
+                            """
+
+                            # Enhanced prompt that incorporates reference images for storyboard generation
+                            reference_elements = ""
+                            has_references = False
+                            
+                            if 'reference_descriptions' in st.session_state and st.session_state.reference_descriptions:
+                                has_references = True
+                                reference_elements = "Reference Image Descriptions:\n\n"
+                                for i, desc in enumerate(st.session_state.reference_descriptions):
+                                    reference_elements += f"Reference Image {i+1}: {desc}\n\n"
+                                
+                                reference_elements += """
+                                IMPORTANT: When using elements from reference images, you MUST reproduce them EXACTLY as they appear.
+                                Not every image needs to use reference elements, but when you do use them:
+                                
+                                1. Be EXTREMELY specific about what you're incorporating
+                                2. Use exact wording like "EXACT SAME black long plate table as in Reference Image X" 
+                                3. Mention the specific reference image number
+                                
+                                Create 4 DIFFERENT but RELATED images that work together as a cohesive advertising campaign.
+                                Each image should have its own unique focus while maintaining brand consistency across all panels.
+                                """
+                            else:
+                                # Enhanced instructions for when no reference images are provided
+                                reference_elements = """
+                                IMPORTANT: Since no reference images were provided, create highly detailed and professional designs with:
+                                
+                                1. Precise descriptions of visual elements (specific colors, objects, layouts)
+                                2. Professional composition and lighting details
+                                3. Clear text placement and hierarchy
+                                4. Brand-appropriate styling
+                                5. Realistic and high-quality visual elements
+                                6. CRITICAL: Use EXACTLY the same color palette across all 4 images (specify exact colors like "deep navy blue #1a2b3c" and "warm gold #d4af37")
+                                """
+                            
+                            # Example format
+                            example_format = """
                             For each prompt, include:
                             - The main visual scene or composition
                             - Specific text to include in the image (headlines, taglines, etc.)
@@ -2276,8 +2424,32 @@ def image_creator_page():
                             - Professional context (how it would be used in business)
                             
                             Format your response as a JSON array with 4 detailed prompts, like this:
-                            ["Professional business image with modern office setting. TEXT: 'Innovation Starts Here' in bold sans-serif font at top. Clean layout with blue and white color scheme, showing team collaboration.", "Prompt 2", "Prompt 3", "Prompt 4"]
+                            """
                             
+                            # Add color palette example if available
+                            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                color_examples = ", ".join(st.session_state.color_palette[:3]) if len(st.session_state.color_palette) > 2 else ", ".join(st.session_state.color_palette)
+                                example = f"""["Professional business image with modern office setting. TEXT: 'Innovation Starts Here' in bold sans-serif font at top. Clean layout using EXACTLY these colors: {color_examples}, showing team collaboration.", "Prompt 2", "Prompt 3", "Prompt 4"]"""
+                            else:
+                                example = """["Professional business image with modern office setting. TEXT: 'Innovation Starts Here' in bold sans-serif font at top. Clean layout with blue and white color scheme, showing team collaboration.", "Prompt 2", "Prompt 3", "Prompt 4"]"""
+                            
+                            # Final instruction
+                            final_instruction = """
+                            Do not include any explanations or additional text - ONLY return the JSON array.
+                            """
+                            
+                            # Combine all parts of the prompt
+                            prompt = base_prompt + reference_elements + example_format + example + final_instruction
+
+                            # Add color palette example if available
+                            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                color_examples = ", ".join(st.session_state.color_palette[:3]) if len(st.session_state.color_palette) > 2 else ", ".join(st.session_state.color_palette)
+                                prompt = prompt.replace(
+                                    "Clean layout with blue and white color scheme", 
+                                    f"Clean layout using EXACTLY these colors: {color_examples}"
+                                )
+                            
+                            prompt += """
                             Do not include any explanations or additional text - ONLY return the JSON array.
                             """
 
@@ -2337,7 +2509,15 @@ def image_creator_page():
                             7. Maintain consistent lighting, mood, and stylistic elements throughout the series
                             """
                             
-                            # Add reference-specific instructions if references exist
+                            # Add color palette information to the prompt if available
+                            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                color_palette_str = ", ".join(st.session_state.color_palette)
+                                prompt += f"""
+                            8. CRITICAL: Use EXACTLY these specific colors in all images: {color_palette_str}
+                            9. Make sure these exact hex colors are prominently featured in all 4 images
+                            """
+
+                            # Enhanced prompt that incorporates reference images for storyboard generation
                             if has_references:
                                 prompt += """
                             6. FAITHFULLY REPRODUCE specific elements from the reference images in your prompts
@@ -2461,6 +2641,26 @@ def image_creator_page():
                                         # Update progress
                                         progress_bar.progress((i) / 4)
                                         
+                                        # Prepare color palette for API if available
+                                        color_palette_param = None
+                                        if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                            # Create color palette with members format
+                                            color_palette_param = {
+                                                "members": []
+                                            }
+                                            
+                                            # Add each color with decreasing weights
+                                            num_colors = len(st.session_state.color_palette)
+                                            for j, color in enumerate(st.session_state.color_palette):
+                                                # Calculate weight - start with 1.0 and decrease for each color
+                                                # Ensure minimum weight is 0.05
+                                                weight = max(0.05, 1.0 - (j * (0.95 / max(1, num_colors - 1))))
+                                                
+                                                color_palette_param["members"].append({
+                                                    "color_hex": color,
+                                                    "color_weight": round(weight, 2)  # Round to 2 decimal places
+                                                })
+                                        
                                         # Generate the image
                                         response = generate_image_with_ideogram(
                                             prompt=prompt,
@@ -2468,7 +2668,8 @@ def image_creator_page():
                                             aspect_ratio=aspect_ratio,
                                             negative_prompt=storyboard_negative_prompt if storyboard_negative_prompt else None,
                                             num_images=1,
-                                            model=selected_model
+                                            model=selected_model,
+                                            color_palette=color_palette_param
                                         )
                                         
                                         if response and "data" in response and len(response["data"]) > 0:
@@ -2625,7 +2826,7 @@ def get_ideogram_client():
     
     return st.session_state.ideogram_api_key
 
-def generate_image_with_ideogram(prompt, style=None, aspect_ratio="1:1", negative_prompt=None, num_images=1, model="V_2_TURBO"):
+def generate_image_with_ideogram(prompt, style=None, aspect_ratio="1:1", negative_prompt=None, num_images=1, model="V_2_TURBO", color_palette=None):
     """Generate an image using the Ideogram API.
     
     Args:
@@ -2635,6 +2836,7 @@ def generate_image_with_ideogram(prompt, style=None, aspect_ratio="1:1", negativ
         negative_prompt (str, optional): Things to avoid in the image
         num_images (int, optional): Number of images to generate (1-4)
         model (str, optional): Model to use for generation (V_1_TURBO or V_2_TURBO)
+        color_palette (dict, optional): Color palette to use for the image. Can be a preset name or a list of hex colors with weights
         
     Returns:
         dict: Response from Ideogram API containing image URLs and other metadata
@@ -2675,6 +2877,12 @@ def generate_image_with_ideogram(prompt, style=None, aspect_ratio="1:1", negativ
     # Add negative prompt if provided
     if negative_prompt:
         payload["image_request"]["negative_prompt"] = negative_prompt
+    
+    # Add color palette if provided
+    if color_palette:
+        # Only add color palette for V_2 and V_2_TURBO models
+        if model in ["V_2", "V_2_TURBO"]:
+            payload["image_request"]["color_palette"] = color_palette
     
     try:
         # Make API request
@@ -2894,18 +3102,23 @@ def get_ideogram_aspect_ratios():
     }
 
 def get_ideogram_styles():
-    """Get available styles for Ideogram API.
-    
-    Returns:
-        dict: Dictionary mapping display names to API values
-    """
+    """Get available Ideogram styles."""
     return {
-        "Auto": "AUTO",
-        "General": "GENERAL",
-        "Realistic": "REALISTIC",
-        "Design": "DESIGN",
-        "3D Render": "RENDER_3D",
-        "Anime": "ANIME"
+        "NONE": "No specific style",
+    }
+
+def get_ideogram_color_palettes():
+    """Get available Ideogram color palette presets."""
+    return {
+        "NONE": "No specific color palette",
+        "EMBER": "Ember - Warm oranges and reds",
+        "FRESH": "Fresh - Bright and vibrant colors",
+        "JUNGLE": "Jungle - Natural greens and earthy tones",
+        "MAGIC": "Magic - Mystical purples and blues",
+        "MELON": "Melon - Soft pinks and greens",
+        "MOSAIC": "Mosaic - Colorful and diverse palette",
+        "PASTEL": "Pastel - Soft and muted colors",
+        "ULTRAMARINE": "Ultramarine - Deep blues and purples"
     }
 
 def describe_image_with_ideogram(image_file):
@@ -2949,6 +3162,72 @@ def describe_image_with_ideogram(image_file):
     except Exception as e:
         st.error(f"Error calling Ideogram Describe API: {e}")
         return None
+
+def is_valid_hex_color(color):
+    """Validate if a string is a valid hex color code.
+    
+    Args:
+        color (str): The color string to validate
+        
+    Returns:
+        bool: True if valid hex color, False otherwise
+    """
+    # Check if the color is a valid hex code (3 or 6 digits with optional #)
+    pattern = r'^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$'
+    return bool(re.match(pattern, color))
+
+def format_hex_color(color):
+    """Format a hex color to ensure it has a # prefix.
+    
+    Args:
+        color (str): The color string to format
+        
+    Returns:
+        str: Formatted hex color with # prefix
+    """
+    # Remove any leading/trailing whitespace
+    color = color.strip()
+    
+    # Add # if it's missing
+    if not color.startswith('#'):
+        color = '#' + color
+        
+    return color
+
+def display_color_palette(colors):
+    """Display a color palette preview.
+    
+    Args:
+        colors (list): List of hex color codes
+        
+    Returns:
+        None
+    """
+    if not colors:
+        return
+    
+    # Calculate width for each color based on number of colors
+    num_colors = len(colors)
+    if num_colors == 0:
+        return
+    
+    # Create a row of color swatches
+    cols = st.columns(num_colors)
+    
+    for i, color in enumerate(colors):
+        with cols[i]:
+            # Display color swatch
+            st.markdown(f"""
+            <div style="
+                background-color: {color}; 
+                width: 100%; 
+                height: 50px; 
+                border-radius: 5px;
+                border: 1px solid #ddd;
+                margin-bottom: 5px;
+            "></div>
+            <p style="text-align: center; font-family: monospace; font-size: 0.8rem;">{color}</p>
+            """, unsafe_allow_html=True)
 
 # Main app
 def main():
