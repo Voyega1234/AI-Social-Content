@@ -2006,6 +2006,18 @@ def image_creator_page():
                                 "color_weight": round(weight, 2)  # Round to 2 decimal places
                             })
                     
+                    # Ensure prompt is a string
+                    if not isinstance(edited_prompt, str):
+                        st.warning("The prompt is not in the expected format. Converting to a string format.")
+                        if isinstance(edited_prompt, dict) and 'prompt' in edited_prompt:
+                            edited_prompt = edited_prompt['prompt']
+                        else:
+                            try:
+                                import json
+                                edited_prompt = json.dumps(edited_prompt)
+                            except:
+                                edited_prompt = str(edited_prompt)
+                    
                     # Call Ideogram API
                     response = generate_image_with_ideogram(
                         prompt=edited_prompt,
@@ -2184,6 +2196,18 @@ def image_creator_page():
                     with st.spinner("Creating your image with AI... This may take a moment."):
                         # Determine which prompt to use
                         final_prompt = combined_prompt if include_reference and 'image_tab_reference_description' in st.session_state else manual_prompt
+                        
+                        # Ensure prompt is a string
+                        if not isinstance(final_prompt, str):
+                            st.warning("The prompt is not in the expected format. Converting to a string format.")
+                            if isinstance(final_prompt, dict) and 'prompt' in final_prompt:
+                                final_prompt = final_prompt['prompt']
+                            else:
+                                try:
+                                    import json
+                                    final_prompt = json.dumps(final_prompt)
+                                except:
+                                    final_prompt = str(final_prompt)
                         
                         # Call Ideogram API
                         response = generate_image_with_ideogram(
@@ -2575,10 +2599,35 @@ def image_creator_page():
                                 
                                 if json_match:
                                     json_str = json_match.group(0)
-                                    storyboard_prompts = json.loads(json_str)
+                                    try:
+                                        storyboard_prompts = json.loads(json_str)
+                                    except json.JSONDecodeError as e:
+                                        # Try to fix common JSON formatting issues
+                                        # Replace single quotes with double quotes
+                                        json_str = json_str.replace("'", '"')
+                                        # Fix unescaped quotes within strings
+                                        json_str = re.sub(r'(?<!\\)"(?=(.*?".*?"))', r'\"', json_str)
+                                        try:
+                                            storyboard_prompts = json.loads(json_str)
+                                        except json.JSONDecodeError:
+                                            # If still failing, try a more aggressive approach
+                                            # Split by commas and manually construct an array
+                                            parts = re.findall(r'"[^"]*"', json_str)
+                                            if len(parts) >= 4:
+                                                storyboard_prompts = parts[:4]
+                                            else:
+                                                raise ValueError("Could not parse the response into 4 prompts")
                                 else:
                                     # Fallback: try to parse the entire response as JSON
-                                    storyboard_prompts = json.loads(response_text)
+                                    try:
+                                        storyboard_prompts = json.loads(response_text)
+                                    except json.JSONDecodeError:
+                                        # Last resort: split by newlines and take 4 non-empty lines
+                                        lines = [line.strip() for line in response_text.split('\n') if line.strip()]
+                                        if len(lines) >= 4:
+                                            storyboard_prompts = lines[:4]
+                                        else:
+                                            raise ValueError("Could not extract 4 prompts from the response")
                                 
                                 # Ensure we have exactly 4 prompts
                                 if not isinstance(storyboard_prompts, list) or len(storyboard_prompts) != 4:
@@ -2661,9 +2710,22 @@ def image_creator_page():
                                                     "color_weight": round(weight, 2)  # Round to 2 decimal places
                                                 })
                                         
+                                        # Ensure prompt is a string
+                                        current_prompt = prompt
+                                        if not isinstance(current_prompt, str):
+                                            st.warning(f"Prompt {i+1} is not in the expected format. Converting to a string format.")
+                                            if isinstance(current_prompt, dict) and 'prompt' in current_prompt:
+                                                current_prompt = current_prompt['prompt']
+                                            else:
+                                                try:
+                                                    import json
+                                                    current_prompt = json.dumps(current_prompt)
+                                                except:
+                                                    current_prompt = str(current_prompt)
+                                        
                                         # Generate the image
                                         response = generate_image_with_ideogram(
-                                            prompt=prompt,
+                                            prompt=current_prompt,
                                             style=style,
                                             aspect_ratio=aspect_ratio,
                                             negative_prompt=storyboard_negative_prompt if storyboard_negative_prompt else None,
@@ -2782,7 +2844,19 @@ def image_creator_page():
                             
                             except Exception as e:
                                 st.error(f"Error processing storyboard prompts: {e}")
-                                st.error("Please try again with a different concept or settings.")
+                                st.warning("""
+                                ### Troubleshooting Tips
+                                
+                                Please try again with a different concept or settings. Here are some suggestions:
+                                
+                                1. **Simplify your concept**: Make it more clear and specific
+                                2. **Reduce color palette complexity**: Try using fewer colors
+                                3. **Try a different model**: V_1_TURBO might work better in some cases
+                                4. **Remove special characters**: Avoid using quotes or special characters in your concept
+                                5. **Try again later**: The AI service might be experiencing high load
+                                
+                                If the problem persists, try generating a new concept first.
+                                """)
                         
                         except Exception as e:
                             if "503" in str(e) or "UNAVAILABLE" in str(e):
@@ -2862,6 +2936,26 @@ def generate_image_with_ideogram(prompt, style=None, aspect_ratio="1:1", negativ
     
     # Ensure num_images is within valid range (1-4)
     num_images = max(1, min(4, num_images))
+    
+    # Ensure prompt is a string
+    if isinstance(prompt, dict):
+        # If prompt is a dictionary, convert it to a string
+        try:
+            # Extract the main prompt text if available
+            if 'prompt' in prompt and isinstance(prompt['prompt'], str):
+                prompt_text = prompt['prompt']
+            else:
+                # Convert the entire dictionary to a JSON string and then to a readable format
+                import json
+                prompt_json = json.dumps(prompt)
+                prompt_text = f"Create an image based on this description: {prompt_json}"
+            
+            # Use the extracted or converted prompt
+            prompt = prompt_text
+        except Exception as e:
+            st.error(f"Error processing prompt: {e}")
+            st.error("Using a simplified prompt instead.")
+            prompt = "Create a professional business image with abstract elements and modern design."
     
     # Prepare payload with the correct structure
     payload = {
