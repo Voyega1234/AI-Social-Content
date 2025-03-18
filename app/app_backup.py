@@ -1478,440 +1478,563 @@ def image_creator_page():
                 </div>
                 """, unsafe_allow_html=True)
         
-        # Generate button
-        if st.button("Generate Image Concept"):
-            if not selected_business:
-                st.warning("Please select or enter a Business.")
-                return
-            
-            if not image_concept:
-                st.warning("Please describe your image concept.")
-                return
-            
-            client = get_gemini_client()
-            if not client:
-                return
-            
-            with st.spinner("Generating image concept..."):
-                try:
-                    # Prepare prompt for Gemini
-                    reference_description = ""
-                    if 'reference_image_description' in st.session_state:
-                        reference_description = f"""
-                        Reference Image Description: {st.session_state.reference_image_description}
-                        
-                        Please incorporate elements from this reference image description into your creative brief.
-                        """
-                    
-                    # Update to handle multiple reference images
-                    reference_description = ""
-                    if 'reference_descriptions' in st.session_state and st.session_state.reference_descriptions:
-                        reference_description = "Reference Image Descriptions:\n\n"
-                        for i, desc in enumerate(st.session_state.reference_descriptions):
-                            reference_description += f"Reference Image {i+1}: {desc}\n\n"
-                        
-                        reference_description += """
-                        CRITICAL: You MUST faithfully reproduce the EXACT visual elements from these reference images.
-                        Be extremely specific about objects, colors, styles, and layouts mentioned in the descriptions.
-                        The final image MUST contain these elements exactly as they appear in the reference images.
-                        """
-                    else:
-                        # Enhanced prompt for when no reference images are provided
-                        reference_description = """
-                        IMPORTANT: Since no reference images were provided, create a highly detailed and professional design with:
-                        - Precise descriptions of visual elements (specific colors, objects, layouts)
-                        - Professional composition and lighting
-                        - Clear text placement and hierarchy
-                        - Brand-appropriate styling
-                        - Realistic and high-quality visual elements
-                        """
-                    
-                    # Add color palette information to the prompt if available
-                    color_palette_description = ""
-                    if st.session_state.color_palette:
-                        color_palette_description = "Color Palette:\n"
-                        for color in st.session_state.color_palette:
-                            color_palette_description += f"- {color}\n"
-                        
-                        color_palette_description += "\nIMPORTANT: You MUST use EXACTLY these colors in the generated image. The final image should prominently feature these specific hex colors in the design."
-                    
-                    # Add business context analysis information to the prompt if available
-                    business_context_description = ""
-                    if business_context_data:
-                        business_context_description = "BUSINESS CONTEXT ANALYSIS:\n\n"
-                        
-                        # Add summary
-                        if business_context_summary:
-                            business_context_description += f"Summary: {business_context_summary}\n\n"
-                        
-                        # Add detailed analysis if available
-                        if 'business_context_analysis' in business_context_data:
-                            business_context_description += "Key Insights:\n"
-                            for item in business_context_data['business_context_analysis']:
-                                if 'question' in item and 'answer' in item:
-                                    business_context_description += f"- {item['question']}: {item['answer'][:150]}...\n"
-                        
-                        business_context_description += """
-                        IMPORTANT: Use this business context information to tailor the image to the target audience.
-                        The image should reflect the demographics, psychographics, and preferences of the audience.
-                        Ensure the style, tone, and content align with what would resonate with this specific audience.
-                        """
-                        
-                        # Add a visual indicator to show how Business Context Analysis influences the prompt
-                        st.markdown("""
-                        <div style="background-color: #e6f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #4285F4;">
-                            <h4 style="margin-top: 0; color: #4285F4;">🎯 How Business Context Analysis Influences Your Image</h4>
-                            <p>The following audience insights will be used to tailor your image concept:</p>
-                            <ul>
-                                <li><strong>Demographics:</strong> Age, gender, location, and other demographic factors</li>
-                                <li><strong>Psychographics:</strong> Values, interests, lifestyle, and attitudes</li>
-                                <li><strong>Visual Preferences:</strong> Color schemes, styles, and imagery that resonate</li>
-                                <li><strong>Messaging Tone:</strong> Language and communication style that connects</li>
-                            </ul>
-                            <p>This ensures your image will be specifically designed to appeal to your target audience.</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # Enhanced prompt that includes text and professional design elements with stronger emphasis on reference images
-                    prompt = f"""
-                    Create a detailed creative brief for a professional business image to be used on {platform} for {selected_business_name}.
-                    
-                    Purpose: {image_purpose}
-                    
-                    Basic concept: {image_concept}
-                    
-                    Visual style preferences: {visual_style if visual_style else "Not specified"}
-                    
-                    {color_palette_description}
-                    
-                    {reference_description}
-                    
-                    {business_context_description}
-                    
-                    IMPORTANT: You MUST structure your response with ALL of the following numbered sections in this exact order:
-                    
-                    1. Creative Ideation: Overall concept and creative direction
-                    2. Content Pillars: Key themes and messages to convey
-                    3. Mood and Tone: Emotional response and atmosphere
-                    4. Reference Elements: 
-                       - Specific objects, colors, layouts, and design elements from the reference images that MUST be included
-                       - How these elements will be incorporated faithfully into the final image
-                    5. Concept Details: Specific visual elements, composition, and technical aspects, including:
-                       - Layout recommendations (rule of thirds, centered, etc.)
-                       - Color scheme suggestions (specific colors that work well for this brand)
-                       - Typography style (font types that would work well)
-                    6. Text Elements:
-                       - Headline: A catchy title for the image (25 characters or less)
-                       - Sub-Headline: Supporting text (50 characters or less)
-                       - Call to Action: Brief text to encourage engagement (if applicable)
-                       - Text Placement: Where text should appear in the image
-                    7. Professional Design Elements:
-                       - Logo placement suggestions
-                       - UI/UX considerations (if for digital use)
-                       - White space utilization
-                       - Visual hierarchy recommendations
-                    8. Ideogram Prompt: A detailed prompt that includes all text elements and design specifications (200-250 characters)
-                       - CRITICAL: This section MUST be included and will be used directly for image generation
-                       - Be sure to include TEXT: elements in the prompt to specify exact text that should appear in the image
-                       - Include specific design instructions like "professional layout," "corporate style," etc.
-                       - CRITICAL: When using elements from reference images, use EXACT descriptions like "EXACT SAME black table as in reference image" to ensure faithful reproduction
-                    9. Negative Prompt: Elements to avoid in the image generation (optional)
-                    10. Audience Alignment: How this image specifically addresses the target audience based on the business context analysis
-                       - IMPORTANT: This section MUST be included and should explain how the image concept aligns with the target audience demographics, psychographics, and preferences
-                       - Explain how specific elements in the image will resonate with the audience
-                       - Describe how the style, tone, and content are tailored to this specific audience
-                    
-                    CRITICAL: You MUST include ALL 10 sections in your response, especially section 8 (Ideogram Prompt) which is required for image generation. Do not skip any sections.
-                    
-                    Make it specific, detailed, professional, and aligned with the brand's identity and target audience. The final image should look like it was professionally designed with integrated text elements and should faithfully reproduce key elements from the reference images.
-                    """
-                    
-                    # Enhanced prompt that includes text and professional design elements
-                    prompt = f"""
-                    Create a detailed creative brief for a professional business image to be used on {platform} for {selected_business_name}.
-                    
-                    Purpose: {image_purpose}
-                    
-                    Basic concept: {image_concept}
-                    
-                    Visual style preferences: {visual_style if visual_style else "Not specified"}
-                    
-                    {color_palette_description}
-                    
-                    {reference_description}
-                    
-                    {business_context_description}
-                    
-                    Please structure your response with the following sections:
-                    
-                    1. Creative Ideation: Overall concept and creative direction
-                    2. Content Pillars: Key themes and messages to convey
-                    3. Mood and Tone: Emotional response and atmosphere
-                    4. Concept Details: Specific visual elements, composition, and technical aspects, including:
-                       - Layout recommendations (rule of thirds, centered, etc.)
-                       - Color scheme suggestions (specific colors that work well for this brand)
-                       - Typography style (font types that would work well)
-                    5. Text Elements:
-                       - Headline: A catchy title for the image (25 characters or less)
-                       - Sub-Headline: Supporting text (50 characters or less)
-                       - Call to Action: Brief text to encourage engagement (if applicable)
-                       - Text Placement: Where text should appear in the image
-                    6. Professional Design Elements:
-                       - Logo placement suggestions
-                       - UI/UX considerations (if for digital use)
-                       - White space utilization
-                       - Visual hierarchy recommendations
-                    7. Ideogram Prompt: A detailed prompt that includes all text elements and design specifications (200-250 characters)
-                       - Be sure to include TEXT: elements in the prompt to specify exact text that should appear in the image
-                       - Include specific design instructions like "professional layout," "corporate style," etc.
-                       - CRITICAL: When using elements from reference images, use EXACT descriptions like "EXACT SAME black table as in reference image" to ensure faithful reproduction
-                    9. Negative Prompt: Elements to avoid in the image generation (optional)
-                    
-                    Make it specific, detailed, professional, and aligned with the brand's identity. The final image should look like it was professionally designed with integrated text elements.
-                    """
-                    
-                    # Enhanced prompt that includes text and professional design elements with stronger emphasis on reference images
-                    prompt = f"""
-                    Create a detailed creative brief for a professional business image to be used on {platform} for {selected_business_name}.
-                    
-                    Purpose: {image_purpose}
-                    
-                    Basic concept: {image_concept}
-                    
-                    Visual style preferences: {visual_style if visual_style else "Not specified"}
-                    
-                    {color_palette_description}
-                    
-                    {reference_description}
-                    
-                    {business_context_description}
-                    
-                    Please structure your response with the following sections:
-                    
-                    1. Creative Ideation: Overall concept and creative direction
-                    2. Content Pillars: Key themes and messages to convey
-                    3. Mood and Tone: Emotional response and atmosphere
-                    4. Reference Elements: 
-                       - Specific objects, colors, layouts, and design elements from the reference images that MUST be included
-                       - How these elements will be incorporated faithfully into the final image
-                    5. Concept Details: Specific visual elements, composition, and technical aspects, including:
-                       - Layout recommendations (rule of thirds, centered, etc.)
-                       - Color scheme suggestions (specific colors that work well for this brand)
-                       - Typography style (font types that would work well)
-                    6. Text Elements:
-                       - Headline: A catchy title for the image (25 characters or less)
-                       - Sub-Headline: Supporting text (50 characters or less)
-                       - Call to Action: Brief text to encourage engagement (if applicable)
-                       - Text Placement: Where text should appear in the image
-                    7. Professional Design Elements:
-                       - Logo placement suggestions
-                       - UI/UX considerations (if for digital use)
-                       - White space utilization
-                       - Visual hierarchy recommendations
-                    8. Ideogram Prompt: A detailed prompt that includes all text elements and design specifications (200-250 characters)
-                       - Be sure to include TEXT: elements in the prompt to specify exact text that should appear in the image
-                       - Include specific design instructions like "professional layout," "corporate style," etc.
-                       - CRITICAL: When using elements from reference images, use EXACT descriptions like "EXACT SAME black table as in reference image" to ensure faithful reproduction
-                    9. Negative Prompt: Elements to avoid in the image generation (optional)
-                    
-                    Make it specific, detailed, professional, and aligned with the brand's identity. The final image should look like it was professionally designed with integrated text elements and should faithfully reproduce key elements from the reference images.
-                    """
-                    
-                    # Enhanced prompt for when no reference images are provided
-                    if not ('reference_descriptions' in st.session_state and st.session_state.reference_descriptions):
-                        reference_description = """
-                        IMPORTANT: Since no reference images were provided, create a highly detailed and professional design with:
-                        - Precise descriptions of visual elements (specific colors, objects, layouts)
-                        - Professional composition and lighting
-                        - Clear text placement and hierarchy
-                        - Brand-appropriate styling
-                        - Realistic and high-quality visual elements
-                        """
-                    
-                    # Call Gemini API
-                    response = client.models.generate_content(
-                        model="gemini-2.0-flash",
-                        contents=prompt
-                    )
-                    
-                    # Store the response in session state for use in the image tab
-                    st.session_state.concept_response = response.text
-                    
-                    # Extract the Ideogram prompt section
-                    concept_text = response.text
-                    
-                    # More robust extraction that doesn't rely on section numbers
-                    ideogram_prompt = None
-                    
-                    # Look for the Ideogram Prompt section using various patterns
-                    ideogram_patterns = [
-                        r"(?:\d+\.\s*)?Ideogram Prompt:(.*?)(?=(?:\n\n\d+\.\s*Negative Prompt:)|(?:\n\nNegative Prompt:))",  # Match with clear section boundary
-                        r"Ideogram Prompt:(.*?)(?=(?:\n\n\d+\.)|(?:\n\n[A-Za-z])|$)",  # Match "Ideogram Prompt:" without number
-                        r"\d+\.\s*Ideogram Prompt:(.*?)(?=(?:\n\n\d+\.)|(?:\n\n[A-Za-z])|$)"  # Match any numbered "Ideogram Prompt:"
-                    ]
-                    
-                    # Try each pattern until we find a match
-                    for pattern in ideogram_patterns:
-                        match = re.search(pattern, concept_text, re.DOTALL)
-                        if match:
-                            ideogram_prompt = match.group(1).strip()
-                            st.session_state.debug_log = f"Found prompt with pattern: {pattern}"
-                            break
-                    
-                    # If we found a prompt, clean it up and store it
-                    if ideogram_prompt:
-                        # Clean up the prompt (remove any trailing instructions or notes)
-                        ideogram_prompt = re.sub(r'\n\s*-\s*.*$', '', ideogram_prompt, flags=re.MULTILINE)
-                        st.session_state.ideogram_prompt = ideogram_prompt
-                        st.session_state.debug_log = f"Extracted prompt: {ideogram_prompt[:50]}..."
-                    else:
-                        # No fallback - show error message instead
-                        st.error("Ideogram Prompt section not found in the generated content. Please regenerate the concept to get a valid prompt.")
-                        # Set a flag to indicate that no valid prompt was found
-                        st.session_state.no_valid_ideogram_prompt = True
-                        # Don't set ideogram_prompt in session state
-                    
-                    # Display the concept brief
-                    st.subheader("Generated Image Concept")
-                    
-                    # Display in tabs with updated names to better reflect the content structure
-                    tabs = st.tabs(["Complete Brief", "Creative Ideation", "Content & Mood", "Design Details", "Text & Prompts", "Audience Alignment"])
-                    
-                    with tabs[0]:
-                        st.markdown(concept_text)
-                        
-                    with tabs[1]:
-                        import re  # Ensure re module is available in this scope
-                        # Extract Creative Ideation and Content Pillars sections with improved patterns
-                        creative_match = re.search(r"(?:\d+\.\s*)?Creative Ideation:(.*?)(?=(?:\n\n\d+\.\s*Content Pillars:)|(?:\n\nContent Pillars:))", concept_text, re.DOTALL)
-                        if creative_match:
-                            creative_section = creative_match.group(1).strip()
-                            st.markdown("### Creative Ideation")
-                            st.markdown(creative_section)
-                        
-                        content_match = re.search(r"(?:\d+\.\s*)?Content Pillars:(.*?)(?=(?:\n\n\d+\.\s*Mood and Tone:)|(?:\n\nMood and Tone:))", concept_text, re.DOTALL)
-                        if content_match:
-                            content_section = content_match.group(1).strip()
-                            st.markdown("### Content Pillars")
-                            st.markdown(content_section)
-                    
-                    with tabs[2]:
-                        import re  # Ensure re module is available in this scope
-                        # Extract Mood and Tone section with improved pattern
-                        mood_match = re.search(r"(?:\d+\.\s*)?Mood and Tone:(.*?)(?=(?:\n\n\d+\.\s*Reference Elements:)|(?:\n\nReference Elements:))", concept_text, re.DOTALL)
-                        if mood_match:
-                            mood_section = mood_match.group(1).strip()
-                            st.markdown("### Mood and Tone")
-                            st.markdown(mood_section)
-                        else:
-                            st.info("Mood and tone section not found in the generated content.")
-                    
-                    with tabs[3]:
-                        import re  # Ensure re module is available in this scope
-                        # Extract Reference Elements and Concept Details sections with improved patterns
-                        reference_match = re.search(r"(?:\d+\.\s*)?Reference Elements:(.*?)(?=(?:\n\n\d+\.\s*Concept Details:)|(?:\n\nConcept Details:))", concept_text, re.DOTALL)
-                        if reference_match:
-                            reference_section = reference_match.group(1).strip()
-                            st.markdown("### Reference Elements")
-                            st.markdown(reference_section)
-                        
-                        concept_details_match = re.search(r"(?:\d+\.\s*)?Concept Details:(.*?)(?=(?:\n\n\d+\.\s*Text Elements:)|(?:\n\nText Elements:))", concept_text, re.DOTALL)
-                        if concept_details_match:
-                            concept_details_section = concept_details_match.group(1).strip()
-                            st.markdown("### Concept Details")
-                            st.markdown(concept_details_section)
-                        else:
-                            st.info("Concept details section not found in the generated content.")
-                    
-                    with tabs[4]:
-                        import re  # Ensure re module is available in this scope
-                        # Extract Text Elements, Professional Design Elements, Ideogram Prompt, and Negative Prompt sections
-                        # Improved regex patterns with clearer boundaries between sections
-                        text_elements_match = re.search(r"(?:\d+\.\s*)?Text Elements:(.*?)(?=(?:\n\n\d+\.\s*Professional Design Elements:)|(?:\n\nProfessional Design Elements:))", concept_text, re.DOTALL)
-                        if text_elements_match:
-                            text_elements_section = text_elements_match.group(1).strip()
-                            st.markdown("### Text Elements")
-                            st.markdown(text_elements_section)
-                        
-                        design_elements_match = re.search(r"(?:\d+\.\s*)?Professional Design Elements:(.*?)(?=(?:\n\n\d+\.\s*Ideogram Prompt:)|(?:\n\nIdeogram Prompt:))", concept_text, re.DOTALL)
-                        if design_elements_match:
-                            design_elements_section = design_elements_match.group(1).strip()
-                            st.markdown("### Professional Design Elements")
-                            st.markdown(design_elements_section)
-                        
-                        # Extract and display Ideogram Prompt with improved pattern
-                        ideogram_prompt_match = re.search(r"(?:\d+\.\s*)?Ideogram Prompt:(.*?)(?=(?:\n\n\d+\.\s*Negative Prompt:)|(?:\n\nNegative Prompt:))", concept_text, re.DOTALL)
-                        st.markdown("### Ideogram Prompt")
-                        if ideogram_prompt_match:
-                            extracted_ideogram_prompt = ideogram_prompt_match.group(1).strip()
-                            st.markdown(extracted_ideogram_prompt)
-                            # Store the extracted prompt for debugging
-                            st.session_state.extracted_ideogram_section = extracted_ideogram_prompt
-                        elif ideogram_prompt:  # Use the previously extracted prompt if available
-                            st.markdown(ideogram_prompt)
-                        else:
-                            st.error("No Ideogram prompt was found in the generated concept. Please regenerate the concept.")
-                            st.markdown("To get a valid prompt, please go back to the Concept tab and regenerate the concept.")
-                        
-                        # Extract and display Negative Prompt with improved pattern
-                        negative_prompt_match = re.search(r"(?:\d+\.\s*)?Negative Prompt:(.*?)(?=(?:\n\n\d+\.\s*Audience Alignment:)|(?:\n\nAudience Alignment:)|$)", concept_text, re.DOTALL)
-                        if negative_prompt_match:
-                            negative_prompt_section = negative_prompt_match.group(1).strip()
-                            st.markdown("### Negative Prompt")
-                            st.markdown(negative_prompt_section)
+        # Generate buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Generate Content Brief", use_container_width=True):
+                if not selected_business:
+                    st.warning("Please select or enter a Business.")
+                    return
+                
+                if not image_concept:
+                    st.warning("Please describe your image concept.")
+                    return
+                
+                client = get_gemini_client()
+                if not client:
+                    return
+                
+                with st.spinner("Generating content brief..."):
+                    try:
+                        # Prepare prompt for Gemini
+                        reference_description = ""
+                        if 'reference_image_description' in st.session_state:
+                            reference_description = f"""
+                            Reference Image Description: {st.session_state.reference_image_description}
                             
-                            # Store the negative prompt for use in the image tab
-                            st.session_state.negative_prompt = negative_prompt_section
-                        else:
-                            # Default negative prompt if none is provided
-                            default_negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional"
-                            st.markdown("### Default Negative Prompt")
-                            st.markdown(default_negative_prompt)
+                            Please incorporate elements from this reference image description into your creative brief.
+                            """
+                        
+                        # Update to handle multiple reference images
+                        reference_description = ""
+                        if 'reference_descriptions' in st.session_state and st.session_state.reference_descriptions:
+                            reference_description = "Reference Image Descriptions:\n\n"
+                            for i, desc in enumerate(st.session_state.reference_descriptions):
+                                reference_description += f"Reference Image {i+1}: {desc}\n\n"
                             
-                            # Store the default negative prompt
-                            st.session_state.negative_prompt = default_negative_prompt
-                    
-                    with tabs[5]:
-                        import re  # Ensure re module is available in this scope
-                        # Extract Audience Alignment section with improved pattern
-                        audience_match = re.search(r"(?:\d+\.\s*)?Audience Alignment:(.*?)(?=$)", concept_text, re.DOTALL)
-                        if audience_match:
-                            audience_section = audience_match.group(1).strip()
-                            st.markdown("### Audience Alignment")
-                            st.markdown(audience_section)
+                            reference_description += """
+                            CRITICAL: You MUST faithfully reproduce the EXACT visual elements from these reference images.
+                            Be extremely specific about objects, colors, styles, and layouts mentioned in the descriptions.
+                            The final image MUST contain these elements exactly as they appear in the reference images.
+                            """
                         else:
-                            st.info("Audience alignment section not found in the generated content.")
-                    
-                    # Add a note about switching to the image tab
-                    st.success("""
-                    **Concept generated successfully!** 
-                    
-                    Switch to the "Create Image" tab to generate an actual image using this concept.
-                    """)
-                    
-                    # Add a debug log
-                    st.info(st.session_state.debug_log)
-                    
-                except Exception as e:
-                    if "503" in str(e) or "UNAVAILABLE" in str(e):
-                        st.error("""
-                        ### Gemini AI Service Temporarily Unavailable
+                            # Enhanced prompt for when no reference images are provided
+                            reference_description = """
+                            IMPORTANT: Since no reference images were provided, create a highly detailed and professional design with:
+                            - Precise descriptions of visual elements (specific colors, objects, layouts)
+                            - Professional composition and lighting
+                            - Clear text placement and hierarchy
+                            - Brand-appropriate styling
+                            - Realistic and high-quality visual elements
+                            """
                         
-                        The AI service is currently experiencing high demand or maintenance. Please try again in a few minutes.
+                        # Add color palette information to the prompt if available
+                        color_palette_description = ""
+                        if st.session_state.color_palette:
+                            color_palette_description = "Color Palette:\n"
+                            for color in st.session_state.color_palette:
+                                color_palette_description += f"- {color}\n"
+                            
+                            color_palette_description += "\nIMPORTANT: You MUST use EXACTLY these colors in the generated image. The final image should prominently feature these specific hex colors in the design."
                         
-                        **Alternative options:**
-                        - Try refreshing the page
-                        - Try a different browser
-                        - Check your internet connection
-                        - Try again later when the service load may be lower
+                        # Add business context analysis information to the prompt if available
+                        business_context_description = ""
+                        if business_context_data:
+                            business_context_description = "BUSINESS CONTEXT ANALYSIS:\n\n"
+                            
+                            # Add summary
+                            if business_context_summary:
+                                business_context_description += f"Summary: {business_context_summary}\n\n"
+                            
+                            # Add detailed analysis if available
+                            if 'business_context_analysis' in business_context_data:
+                                business_context_description += "Key Insights:\n"
+                                for item in business_context_data['business_context_analysis']:
+                                    if 'question' in item and 'answer' in item:
+                                        business_context_description += f"- {item['question']}: {item['answer'][:150]}...\n"
+                            
+                            business_context_description += """
+                            IMPORTANT: Use this business context information to tailor the image to the target audience.
+                            The image should reflect the demographics, psychographics, and preferences of the audience.
+                            Ensure the style, tone, and content align with what would resonate with this specific audience.
+                            """
                         
-                        Technical details: {e}
+                        # Simplified prompt that only generates the content brief sections
+                        prompt = f"""
+                        Create a content brief for a professional business image to be used on {platform} for {selected_business_name}.
+                        
+                        Purpose: {image_purpose}
+                        
+                        Basic concept: {image_concept}
+                        
+                        Visual style preferences: {visual_style if visual_style else "Not specified"}
+                        
+                        {color_palette_description}
+                        
+                        {reference_description}
+                        
+                        {business_context_description}
+                        
+                        Please ONLY include the following sections in your response:
+                        
+                        1. Creative Ideation: Overall concept and creative direction
+                        2. Content Pillars: Key themes and messages to convey
+                        3. Mood and Tone: Emotional response and atmosphere
+                        
+                        Make it specific, detailed, professional, and aligned with the brand's identity.
+                        """
+                        
+                        # Call Gemini API
+                        response = client.models.generate_content(
+                            model="gemini-2.0-flash",
+                            contents=prompt
+                        )
+                        
+                        # Store the response in session state for use later
+                        st.session_state.content_brief = response.text
+                        
+                        # Display the content brief
+                        st.subheader("Generated Content Brief")
+                        
+                        # Display in tabs
+                        tabs = st.tabs(["Complete Brief", "Creative Ideation", "Content Pillars", "Mood and Tone"])
+                        
+                        with tabs[0]:
+                            st.markdown(response.text)
+                            
+                        with tabs[1]:
+                            import re  # Ensure re module is available in this scope
+                            # Extract Creative Ideation section
+                            creative_match = re.search(r"(?:\d+\.\s*)?Creative Ideation:(.*?)(?=(?:\n\n\d+\.\s*Content Pillars:)|(?:\n\nContent Pillars:))", response.text, re.DOTALL)
+                            if creative_match:
+                                creative_section = creative_match.group(1).strip()
+                                st.markdown("### Creative Ideation")
+                                st.markdown(creative_section)
+                            else:
+                                st.info("Creative Ideation section not found in the generated content.")
+                        
+                        with tabs[2]:
+                            import re  # Ensure re module is available in this scope
+                            # Extract Content Pillars section
+                            content_match = re.search(r"(?:\d+\.\s*)?Content Pillars:(.*?)(?=(?:\n\n\d+\.\s*Mood and Tone:)|(?:\n\nMood and Tone:))", response.text, re.DOTALL)
+                            if content_match:
+                                content_section = content_match.group(1).strip()
+                                st.markdown("### Content Pillars")
+                                st.markdown(content_section)
+                            else:
+                                st.info("Content Pillars section not found in the generated content.")
+                        
+                        with tabs[3]:
+                            import re  # Ensure re module is available in this scope
+                            # Extract Mood and Tone section
+                            mood_match = re.search(r"(?:\d+\.\s*)?Mood and Tone:(.*?)(?=$)", response.text, re.DOTALL)
+                            if mood_match:
+                                mood_section = mood_match.group(1).strip()
+                                st.markdown("### Mood and Tone")
+                                st.markdown(mood_section)
+                            else:
+                                st.info("Mood and Tone section not found in the generated content.")
+                        
+                        # Set a flag to indicate that the content brief has been generated
+                        st.session_state.content_brief_generated = True
+                        
+                        # Add a note about generating the Ideogram prompt
+                        st.success("""
+                        **Content Brief generated successfully!** 
+                        
+                        Now you can generate an Ideogram prompt based on this brief.
                         """)
-                    else:
-                        st.error(f"Error calling AI service: {e}")
+                        
+                    except Exception as e:
+                        if "503" in str(e) or "UNAVAILABLE" in str(e):
+                            st.error("""
+                            ### Gemini AI Service Temporarily Unavailable
+                            
+                            The AI service is currently experiencing high demand or maintenance. Please try again in a few minutes.
+                            """)
+                        else:
+                            st.error(f"Error generating content brief: {str(e)}")
+        
+        # Only show these buttons if the content brief has been generated
+        if 'content_brief_generated' in st.session_state and st.session_state.content_brief_generated:
+            prompt_col1, prompt_col2 = st.columns(2)
+            
+            with prompt_col1:
+                if st.button("Generate Ideogram Prompt", use_container_width=True):
+                    client = get_gemini_client()
+                    if not client:
+                        return
+                    
+                    with st.spinner("Generating Ideogram prompt..."):
+                        try:
+                            # Create a prompt to generate the Ideogram prompt based on the content brief
+                            ideogram_prompt_request = f"""
+                            Based on the following content brief, create a detailed Ideogram prompt for image generation.
+                            
+                            CONTENT BRIEF:
+                            {st.session_state.content_brief}
+                            
+                            Purpose: {image_purpose}
+                            
+                            Basic concept: {image_concept}
+                            
+                            Visual style preferences: {visual_style if visual_style else "Not specified"}
+                            
+                            {color_palette_description if 'color_palette_description' in locals() else ""}
+                            
+                            {reference_description if 'reference_description' in locals() else ""}
+                            
+                            IMPORTANT INSTRUCTIONS:
+                            1. Create a HIGHLY DETAILED prompt (400-600 characters) that includes all text elements and design specifications
+                            2. Include TEXT: elements to specify exact text that should appear in the image
+                            3. Include specific design instructions like "professional layout," "corporate style," etc.
+                            4. When using elements from reference images, use EXACT descriptions
+                            5. Be extremely specific about colors, lighting, composition, and style
+                            6. Include details about the background, foreground, and any specific objects
+                            7. Specify camera angle, perspective, and mood/atmosphere
+                            8. Also include a negative prompt section with elements to avoid in the image generation
+                            
+                            Format your response with these two sections:
+                            
+                            Ideogram Prompt: [Your detailed prompt here]
+                            
+                            Negative Prompt: [Elements to avoid here]
+                            """
+                            
+                            # Call Gemini API
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=ideogram_prompt_request
+                            )
+                            
+                            # Extract the Ideogram prompt section
+                            response_text = response.text
+                            
+                            # Extract the Ideogram prompt
+                            ideogram_prompt_match = re.search(r"(?:Ideogram Prompt:|Prompt:)(.*?)(?=(?:\n\nNegative Prompt:)|(?:\nNegative Prompt:)|$)", response_text, re.DOTALL)
+                            if ideogram_prompt_match:
+                                ideogram_prompt = ideogram_prompt_match.group(1).strip()
+                                st.session_state.ideogram_prompt = ideogram_prompt
+                            else:
+                                st.error("Could not extract Ideogram prompt from the response.")
+                                st.code(response_text)
+                                return
+                            
+                            # Extract the Negative prompt
+                            negative_prompt_match = re.search(r"(?:Negative Prompt:)(.*?)(?=$)", response_text, re.DOTALL)
+                            if negative_prompt_match:
+                                negative_prompt = negative_prompt_match.group(1).strip()
+                                st.session_state.negative_prompt = negative_prompt
+                            else:
+                                # Default negative prompt if none is provided
+                                st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional"
+                            
+                            # Display the Ideogram prompt
+                            st.subheader("Generated Ideogram Prompt")
+                            
+                            st.markdown(f"""
+                            <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                                <h4 style="margin-top: 0;">Ideogram Prompt:</h4>
+                                <p style="font-family: monospace; margin: 0;">{ideogram_prompt}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            st.markdown(f"""
+                            <div style="background-color: #fff4f4; padding: 15px; border-radius: 5px; border-left: 5px solid #FF5252; margin-top: 15px;">
+                                <h4 style="margin-top: 0;">Negative Prompt:</h4>
+                                <p style="font-family: monospace; margin: 0;">{st.session_state.negative_prompt}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Add a note about switching to the image tab
+                            st.success("""
+                            **Ideogram Prompt generated successfully!** 
+                            
+                            Switch to the "Create Image" tab to generate an image using this prompt.
+                            """)
+                            
+                        except Exception as e:
+                            st.error(f"Error generating Ideogram prompt: {str(e)}")
+            
+            with prompt_col2:
+                if st.button("Generate 5 Prompt Ideas", use_container_width=True):
+                    client = get_gemini_client()
+                    if not client:
+                        return
+                    
+                    with st.spinner("Generating 5 different prompt ideas..."):
+                        try:
+                            # Create a prompt to generate 5 different Ideogram prompt ideas based on the content brief
+                            multiple_prompts_request = f"""
+                            Based on the following content brief, create 5 DIFFERENT Ideogram prompt ideas for a professional business image.
+                            
+                            CONTENT BRIEF:
+                            {st.session_state.content_brief}
+                            
+                            Purpose: {image_purpose}
+                            
+                            Basic concept: {image_concept}
+                            
+                            Visual style preferences: {visual_style if visual_style else "Not specified"}
+                            
+                            {color_palette_description if 'color_palette_description' in locals() else ""}
+                            
+                            {reference_description if 'reference_description' in locals() else ""}
+                            
+                            IMPORTANT INSTRUCTIONS:
+                            1. Generate 5 COMPLETELY DIFFERENT Ideogram prompt ideas
+                            2. Each prompt should be HIGHLY DETAILED (400-600 characters)
+                            3. Each prompt should include TEXT: elements to specify exact text that should appear in the image
+                            4. Each prompt should include specific design instructions like "professional layout," "corporate style," etc.
+                            5. Make each prompt unique in style, approach, or concept
+                            6. Be extremely specific about colors, lighting, composition, and style
+                            7. Include details about the background, foreground, and any specific objects
+                            8. Specify camera angle, perspective, and mood/atmosphere
+                            
+                            Your response MUST be a valid JSON object with this EXACT structure:
+                            {{
+                              "prompts": [
+                                {{
+                                  "title": "Brief descriptive title for prompt 1",
+                                  "text": "The full prompt text for prompt 1"
+                                }},
+                                {{
+                                  "title": "Brief descriptive title for prompt 2",
+                                  "text": "The full prompt text for prompt 2"
+                                }},
+                                {{
+                                  "title": "Brief descriptive title for prompt 3",
+                                  "text": "The full prompt text for prompt 3"
+                                }},
+                                {{
+                                  "title": "Brief descriptive title for prompt 4",
+                                  "text": "The full prompt text for prompt 4"
+                                }},
+                                {{
+                                  "title": "Brief descriptive title for prompt 5",
+                                  "text": "The full prompt text for prompt 5"
+                                }}
+                              ]
+                            }}
+                            
+                            CRITICAL: Your response MUST be ONLY the JSON object above with no additional text, markdown, or explanation before or after. Do not include ```json or ``` markers.
+                            """
+                            
+                            # Call Gemini API with structured output
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=multiple_prompts_request
+                            )
+                            
+                            # Parse the JSON response
+                            try:
+                                import json
+                                response_text = response.text.strip()
+                                
+                                # Clean up the response if it has markdown code blocks
+                                if response_text.startswith("```json"):
+                                    response_text = response_text.replace("```json", "", 1)
+                                if response_text.startswith("```"):
+                                    response_text = response_text.replace("```", "", 1)
+                                if response_text.endswith("```"):
+                                    response_text = response_text[:-3]
+                                
+                                response_text = response_text.strip()
+                                
+                                # Try to parse the JSON
+                                prompt_ideas = json.loads(response_text)
+                                
+                                # Validate the JSON structure
+                                if "prompts" not in prompt_ideas or not isinstance(prompt_ideas["prompts"], list) or len(prompt_ideas["prompts"]) == 0:
+                                    st.error("The response doesn't have the expected JSON structure. Please try again.")
+                                    st.code(response_text)
+                                    return
+                                
+                                # Store the prompt ideas in session state
+                                st.session_state.prompt_ideas = prompt_ideas["prompts"]
+                                
+                                # Display the 5 prompt ideas
+                                st.subheader("Choose from 5 Different Prompt Ideas")
+                                st.info("Select the prompt idea you like best. The selected prompt will be used for image generation.")
+                                
+                                # Create cards for each prompt idea
+                                for i, prompt in enumerate(st.session_state.prompt_ideas):
+                                    with st.container():
+                                        st.markdown(f"""
+                                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e0e0e0;">
+                                            <h4 style="margin-top: 0;">{i+1}. {prompt['title']}</h4>
+                                            <p style="font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{prompt['text']}</p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                        
+                                        # Define a callback function to set the prompt
+                                        def select_prompt_callback(prompt_text, prompt_title, idx):
+                                            st.session_state.ideogram_prompt = prompt_text
+                                            st.session_state.selected_prompt_title = prompt_title
+                                            st.session_state.selected_prompt_index = idx
+                                            
+                                            # Also store a default negative prompt
+                                            if 'negative_prompt' not in st.session_state:
+                                                st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional"
+                                        
+                                        # Create a button with the callback
+                                        st.button(
+                                            f"Select Prompt {i+1}", 
+                                            key=f"select_prompt_{i}",
+                                            on_click=select_prompt_callback,
+                                            args=(prompt['text'], prompt['title'], i)
+                                        )
+                                
+                                # Check if a prompt was selected
+                                if 'selected_prompt_index' in st.session_state:
+                                    idx = st.session_state.selected_prompt_index
+                                    title = st.session_state.selected_prompt_title
+                                    st.success(f"Selected prompt {idx+1}: '{title}'. This prompt will be used for image generation.")
+                                    
+                                    # Add a note about switching to the image tab
+                                    st.info("Switch to the 'Create Image' tab to generate an image using this prompt.")
+                                
+                            except json.JSONDecodeError as e:
+                                st.error(f"Could not parse the response as JSON. Error: {str(e)}")
+                                
+                                # Try a fallback approach - manually extract the prompts
+                                st.warning("Attempting to extract prompts manually...")
+                                
+                                try:
+                                    # Create a simple structure to hold the prompts
+                                    manual_prompts = []
+                                    
+                                    # Look for patterns like "Prompt 1:", "Title 1:", etc.
+                                    prompt_blocks = re.split(r'(?:Prompt|Title)\s*\d+[:.]\s*', response_text)
+                                    
+                                    # Remove the first element if it's empty or just contains intro text
+                                    if prompt_blocks and (not prompt_blocks[0].strip() or "prompts" in prompt_blocks[0].lower()):
+                                        prompt_blocks = prompt_blocks[1:]
+                                    
+                                    # Process each block to extract title and text
+                                    for i, block in enumerate(prompt_blocks[:5]):  # Limit to 5 prompts
+                                        lines = block.strip().split('\n')
+                                        
+                                        if len(lines) >= 2:
+                                            title = lines[0].strip()
+                                            text = '\n'.join(lines[1:]).strip()
+                                            
+                                            # Clean up the text
+                                            text = re.sub(r'^["\']|["\']$', '', text)  # Remove quotes
+                                            text = re.sub(r'^Text[:.]\s*', '', text)   # Remove "Text:" prefix
+                                            
+                                            manual_prompts.append({
+                                                "title": title,
+                                                "text": text
+                                            })
+                                    
+                                    if manual_prompts:
+                                        st.success("Successfully extracted prompts manually!")
+                                        st.session_state.prompt_ideas = manual_prompts
+                                        
+                                        # Display the extracted prompt ideas
+                                        st.subheader("Choose from the Extracted Prompt Ideas")
+                                        st.info("Select the prompt idea you like best. The selected prompt will be used for image generation.")
+                                        
+                                        # Create cards for each prompt idea
+                                        for i, prompt in enumerate(st.session_state.prompt_ideas):
+                                            with st.container():
+                                                st.markdown(f"""
+                                                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e0e0e0;">
+                                                    <h4 style="margin-top: 0;">{i+1}. {prompt['title']}</h4>
+                                                    <p style="font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{prompt['text']}</p>
+                                                </div>
+                                                """, unsafe_allow_html=True)
+                                                
+                                                # Define a callback function to set the prompt
+                                                def select_prompt_callback(prompt_text, prompt_title, idx):
+                                                    st.session_state.ideogram_prompt = prompt_text
+                                                    st.session_state.selected_prompt_title = prompt_title
+                                                    st.session_state.selected_prompt_index = idx
+                                                    
+                                                    # Also store a default negative prompt
+                                                    if 'negative_prompt' not in st.session_state:
+                                                        st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional"
+                                                
+                                                # Create a button with the callback
+                                                st.button(
+                                                    f"Select Prompt {i+1}", 
+                                                    key=f"select_prompt_manual_{i}",
+                                                    on_click=select_prompt_callback,
+                                                    args=(prompt['text'], prompt['title'], i)
+                                                )
+                                        
+                                        # Check if a prompt was selected
+                                        if 'selected_prompt_index' in st.session_state:
+                                            idx = st.session_state.selected_prompt_index
+                                            title = st.session_state.selected_prompt_title
+                                            st.success(f"Selected prompt {idx+1}: '{title}'. This prompt will be used for image generation.")
+                                            
+                                            # Add a note about switching to the image tab
+                                            st.info("Switch to the 'Create Image' tab to generate an image using this prompt.")
+                                    else:
+                                        st.error("Could not extract prompts manually. Please try again.")
+                                        st.code(response_text)
+                                except Exception as manual_error:
+                                    st.error(f"Manual extraction failed: {str(manual_error)}")
+                                    st.code(response_text)
+                            
+                        except Exception as e:
+                            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                                st.error("""
+                                ### Gemini AI Service Temporarily Unavailable
+                                
+                                The AI service is currently experiencing high demand or maintenance. Please try again in a few minutes.
+                                """)
+                            else:
+                                st.error(f"Error generating prompt ideas: {str(e)}")
+        
+        # If the content brief hasn't been generated yet, show a message
+        elif 'content_brief_generated' not in st.session_state:
+            st.info("Generate a Content Brief first to see additional options for creating Ideogram prompts.")
     
     with image_tab:
         st.subheader("Create Image with Ideogram")
+        
+        # Debug session state
+        with st.expander("Debug Session State", expanded=False):
+            st.write("Session State Keys:", list(st.session_state.keys()))
+            if 'ideogram_prompt' in st.session_state:
+                st.write("Ideogram Prompt Value:", st.session_state.ideogram_prompt)
+            if 'negative_prompt' in st.session_state:
+                st.write("Negative Prompt Value:", st.session_state.negative_prompt)
+        
+        # Check if we have a valid Ideogram prompt
+        if 'ideogram_prompt' not in st.session_state or not st.session_state.ideogram_prompt:
+            st.warning("No valid Ideogram prompt is available. Please go to the Concept tab and generate a concept first.")
+        else:
+            # Allow editing the current prompt
+            st.markdown("### Edit Prompt")
+            st.info("You can edit the prompt below before generating an image.")
+            
+            # Editable prompt text area
+            edited_prompt = st.text_area(
+                "Prompt",
+                value=st.session_state.ideogram_prompt,
+                height=150,
+                help="Edit the prompt to customize the image generation."
+            )
+            
+            # Display the negative prompt if available and make it editable
+            if 'negative_prompt' in st.session_state and st.session_state.negative_prompt:
+                edited_negative_prompt = st.text_area(
+                    "Negative Prompt",
+                    value=st.session_state.negative_prompt,
+                    height=100,
+                    help="Edit the negative prompt to specify what to avoid in the image."
+                )
+            else:
+                edited_negative_prompt = st.text_area(
+                    "Negative Prompt (Optional)",
+                    value="blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional",
+                    height=100,
+                    help="Specify elements to avoid in the generated image."
+                )
         
         # Add a helpful guide at the top
         with st.expander("📝 How to Use This Image Generator", expanded=False):
@@ -1934,210 +2057,130 @@ def image_creator_page():
             - Try different styles if you're not happy with the results
             """)
         
-        # Check if we have a prompt from the concept tab
-        if 'ideogram_prompt' in st.session_state and 'no_valid_ideogram_prompt' not in st.session_state:
-            # Create a visually distinct card for the prompt input
+        # Create a visually distinct card for the image settings
+        st.markdown("""
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
+        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem;">⚙️ Image Settings</h3>
+        """, unsafe_allow_html=True)
+        
+        # Image style and aspect ratio options
+        col1, col2 = st.columns(2)
+        
+        with col1:
             st.markdown("""
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem;">✏️ Image Prompt</h3>
+            <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose model and style options:</p>
             """, unsafe_allow_html=True)
             
-            # Add a note about the prompt source
-            st.info("A prompt has been automatically generated from your concept. You can edit it below or use it as is.")
-            
-            # Display the raw extracted prompt for debugging if needed
-            if 'extracted_ideogram_section' in st.session_state:
-                with st.expander("View Raw Extracted Section (for debugging)", expanded=False):
-                    st.code(st.session_state.extracted_ideogram_section)
-            
-            # Prompt input
-            prompt = st.text_area(
-                "Prompt",
-                value=st.session_state.ideogram_prompt,
-                height=150,
-                placeholder="Describe what you want to see in the image. Be specific about style, content, colors, etc.",
-                help="This is the main instruction for the AI. The more detailed, the better the results."
+            # Add model selection
+            model_options = {
+                "V_2_TURBO": "V_2_TURBO (Balanced speed and quality)",
+                "V_1_TURBO": "V_1_TURBO (Fastest generation)"
+            }
+            selected_model = st.selectbox(
+                "Model",
+                list(model_options.keys()),
+                format_func=lambda x: model_options[x],
+                index=0,
+                help="V_2_TURBO offers balanced speed and quality. V_1_TURBO is faster but may have lower quality."
             )
             
-            # Negative prompt input
-            negative_prompt_value = st.session_state.negative_prompt if 'negative_prompt' in st.session_state else ""
-            negative_prompt = st.text_area(
-                "Negative Prompt (Optional)",
-                value=negative_prompt_value,
-                height=100,
-                placeholder="Describe what you DON'T want to see in the image (e.g., 'blurry, distorted faces, bad anatomy')",
-                help="This helps the AI avoid certain elements or styles in the generated image."
+            # Get style options
+            style_options = get_ideogram_styles()
+            
+            # Style is always None since we don't have V_2A anymore
+            style = None
+            # No need to show style selection UI
+        
+        with col2:
+            st.markdown("""
+            <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose the shape/dimensions of your image:</p>
+            """, unsafe_allow_html=True)
+            
+            aspect_ratio_options = get_ideogram_aspect_ratios()
+            aspect_ratio_selected = st.selectbox(
+                "Aspect Ratio",
+                list(aspect_ratio_options.keys()),
+                index=0,
+                help="Select the shape of your image. Square (1:1) is good for social media posts. Landscape (16:9) is good for wide images."
             )
-            
-            # Allow editing the prompt
-            edited_prompt = prompt
-            
-            # Add business context info if available
-            if 'business_context_data' in locals() and business_context_data:
-                # Add a preview section for Business Context Analysis in the image tab
-                with st.expander("👥 Preview Business Context Analysis", expanded=False):
-                    st.markdown("### Business Context Summary")
-                    st.markdown(f"**{business_context_summary}**")
-                    
-                    if 'business_context_analysis' in business_context_data:
-                        st.markdown("### Key Audience Insights")
-                        for item in business_context_data['business_context_analysis']:
-                            if 'question' in item and 'answer' in item:
-                                st.markdown(f"**{item['question']}**")
-                                st.markdown(item['answer'])
-                                st.markdown("---")
-                    
-                    st.info("These insights are being used to enhance your image generation.")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # Create a visually distinct card for the image settings
+            aspect_ratio = aspect_ratio_options[aspect_ratio_selected]
+        
+        # Display color palette if available
+        if 'color_palette' in st.session_state and st.session_state.color_palette:
             st.markdown("""
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem;">⚙️ Image Settings</h3>
+            <h4 style="margin-top: 15px; margin-bottom: 10px; font-size: 1rem;">🎨 Color Palette</h4>
+            <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">These colors will be used in your generated image:</p>
             """, unsafe_allow_html=True)
             
-            # Image style and aspect ratio options
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("""
-                <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose model and style options:</p>
-                """, unsafe_allow_html=True)
+            display_color_palette(st.session_state.color_palette)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Number of images is fixed to 1 (hidden from user)
+        num_images = 1
+        
+        # Generate image button with more prominence
+        st.markdown("""
+        <div style="text-align: center; margin: 30px 0;">
+        """, unsafe_allow_html=True)
+        
+        if st.button("🖼️ Generate Image", use_container_width=True, key="generate_button"):
+            with st.spinner("Creating your image with AI... This may take a moment."):
+                # Prepare color palette for API if available
+                color_palette_param = None
+                if 'color_palette' in st.session_state and st.session_state.color_palette:
+                    # Create color palette with members format
+                    color_palette_param = {
+                        "members": []
+                    }
+                    
+                    # Add each color with decreasing weights
+                    num_colors = len(st.session_state.color_palette)
+                    for i, color in enumerate(st.session_state.color_palette):
+                        # Calculate weight - start with 1.0 and decrease for each color
+                        # Ensure minimum weight is 0.05
+                        weight = max(0.05, 1.0 - (i * (0.95 / max(1, num_colors - 1))))
+                        
+                        color_palette_param["members"].append({
+                            "color_hex": color,
+                            "color_weight": round(weight, 2)  # Round to 2 decimal places
+                        })
                 
-                # Add model selection
-                model_options = {
-                    "V_2_TURBO": "V_2_TURBO (Balanced speed and quality)",
-                    "V_1_TURBO": "V_1_TURBO (Fastest generation)"
-                }
-                selected_model = st.selectbox(
-                    "Model",
-                    list(model_options.keys()),
-                    format_func=lambda x: model_options[x],
-                    index=0,
-                    help="V_2_TURBO offers balanced speed and quality. V_1_TURBO is faster but may have lower quality."
+                # Ensure prompt is a string
+                if not isinstance(st.session_state.ideogram_prompt, str):
+                    st.warning("The prompt is not in the expected format. Converting to a string format.")
+                    if isinstance(st.session_state.ideogram_prompt, dict) and 'prompt' in st.session_state.ideogram_prompt:
+                        st.session_state.ideogram_prompt = st.session_state.ideogram_prompt['prompt']
+                    else:
+                        try:
+                            import json
+                            st.session_state.ideogram_prompt = json.dumps(st.session_state.ideogram_prompt)
+                        except:
+                            st.session_state.ideogram_prompt = str(st.session_state.ideogram_prompt)
+                
+                # Call Ideogram API
+                response = generate_image_with_ideogram(
+                    prompt=edited_prompt,
+                    style=style,
+                    aspect_ratio=aspect_ratio,
+                    negative_prompt=edited_negative_prompt,
+                    num_images=num_images,
+                    model=selected_model,
+                    color_palette=st.session_state.color_palette if 'color_palette' in st.session_state and st.session_state.color_palette else None
                 )
                 
-                # Get style options
-                style_options = get_ideogram_styles()
-                
-                # Style is always None since we don't have V_2A anymore
-                style = None
-                # No need to show style selection UI
-            
-            with col2:
-                st.markdown("""
-                <p style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">Choose the shape/dimensions of your image:</p>
-                """, unsafe_allow_html=True)
-                
-                aspect_ratio_options = get_ideogram_aspect_ratios()
-                aspect_ratio_selected = st.selectbox(
-                    "Aspect Ratio",
-                    list(aspect_ratio_options.keys()),
-                    index=0,
-                    help="Select the shape of your image. Square (1:1) is good for social media posts. Landscape (16:9) is good for wide images."
-                )
-                aspect_ratio = aspect_ratio_options[aspect_ratio_selected]
-            
-            # Display color palette if available
-            if 'color_palette' in st.session_state and st.session_state.color_palette:
-                st.markdown("""
-                <h4 style="margin-top: 15px; margin-bottom: 10px; font-size: 1rem;">🎨 Color Palette</h4>
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">These colors will be used in your generated image:</p>
-                """, unsafe_allow_html=True)
-                
-                display_color_palette(st.session_state.color_palette)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # Number of images is fixed to 1 (hidden from user)
-            num_images = 1
-            
-            # Generate image button with more prominence
-            st.markdown("""
-            <div style="text-align: center; margin: 30px 0;">
-            """, unsafe_allow_html=True)
-            
-            if st.button("🖼️ Generate Image", use_container_width=True, key="generate_button"):
-                with st.spinner("Creating your image with AI... This may take a moment."):
-                    # Prepare color palette for API if available
-                    color_palette_param = None
-                    if 'color_palette' in st.session_state and st.session_state.color_palette:
-                        # Create color palette with members format
-                        color_palette_param = {
-                            "members": []
-                        }
-                        
-                        # Add each color with decreasing weights
-                        num_colors = len(st.session_state.color_palette)
-                        for i, color in enumerate(st.session_state.color_palette):
-                            # Calculate weight - start with 1.0 and decrease for each color
-                            # Ensure minimum weight is 0.05
-                            weight = max(0.05, 1.0 - (i * (0.95 / max(1, num_colors - 1))))
-                            
-                            color_palette_param["members"].append({
-                                "color_hex": color,
-                                "color_weight": round(weight, 2)  # Round to 2 decimal places
-                            })
+                if response:
+                    st.success("✅ Image generated successfully!")
                     
-                    # Ensure prompt is a string
-                    if not isinstance(edited_prompt, str):
-                        st.warning("The prompt is not in the expected format. Converting to a string format.")
-                        if isinstance(edited_prompt, dict) and 'prompt' in edited_prompt:
-                            edited_prompt = edited_prompt['prompt']
-                        else:
-                            try:
-                                import json
-                                edited_prompt = json.dumps(edited_prompt)
-                            except:
-                                edited_prompt = str(edited_prompt)
+                    # Store the response in session state
+                    st.session_state.ideogram_response = response
                     
-                    # Call Ideogram API
-                    response = generate_image_with_ideogram(
-                        prompt=edited_prompt,
-                        style=style,
-                        aspect_ratio=aspect_ratio,
-                        negative_prompt=negative_prompt if negative_prompt else None,
-                        num_images=num_images,
-                        model=selected_model,
-                        color_palette=color_palette_param
-                    )
-                    
-                    if response:
-                        st.success("✅ Image generated successfully!")
-                        
-                        # Store the response in session state
-                        st.session_state.ideogram_response = response
-                        
-                        # Display the generated images
-                        display_ideogram_images(response)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-        else:
-            # No valid prompt available
-            st.error("No valid Ideogram prompt is available. Please go to the Concept tab and generate a concept first.")
-            st.markdown("""
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem;">⚠️ Missing Prompt</h3>
-            <p>A valid prompt from the concept generation is required to create images. Please follow these steps:</p>
-            <ol>
-                <li>Go to the "Concept" tab</li>
-                <li>Fill in the required information</li>
-                <li>Generate a concept</li>
-                <li>Ensure the concept includes an "Ideogram Prompt" section</li>
-                <li>Return to this tab to generate images</li>
-            </ol>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Disable the rest of the UI
-            return
+                    # Display the generated images
+                    display_ideogram_images(response)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     with storyboard_tab:
-        import re  # Ensure re module is available in this scope
-        
-        st.markdown("## Storyboard Generator")
         st.subheader("Create a Storyboard with Related Images")
         
         # Add a helpful guide at the top
@@ -2288,123 +2331,11 @@ def image_creator_page():
                         st.error("Unable to initialize Gemini client. Please try again later.")
                     else:
                         try:
-                            # Retrieve business context analysis data if available
-                            business_context_data = None
-                            business_context_summary = None
-                            if selected_business:
-                                try:
-                                    # Import the function from client_info
-                                    from client_info import get_saved_insights
-                                    
-                                    # Get saved insights for the selected business
-                                    saved_insights = get_saved_insights(selected_business)
-                                    
-                                    # Check if there are any insights available
-                                    if saved_insights and len(saved_insights) > 0:
-                                        # Use the most recent insight
-                                        latest_insight = saved_insights[0]
-                                        business_context_data = latest_insight['insight_data']
-                                        
-                                        # Extract summary and analysis
-                                        if 'summary' in business_context_data:
-                                            business_context_summary = business_context_data['summary']
-                                        
-                                        # Show a success message
-                                        st.success("✅ Business Context Analysis data loaded! This will enhance your storyboard generation.")
-                                except Exception as e:
-                                    st.warning(f"Could not load business context analysis: {e}")
-                            
-                            # Add business context analysis information to the prompt if available
-                            business_context_description = ""
-                            target_audience_info = ""
-                            service_details = ""
-                            unique_selling_points = ""
-                            customer_pain_points = ""
-                            brand_voice = ""
-                            
-                            if business_context_data:
-                                business_context_description = """
-                                BUSINESS CONTEXT ANALYSIS:
-                                """
-                                
-                                # Add summary
-                                if business_context_summary:
-                                    business_context_description += f"""
-                                Summary: {business_context_summary}
-                                
-                                """
-                                
-                                # Extract and categorize detailed analysis if available
-                                if 'business_context_analysis' in business_context_data:
-                                    # First pass: categorize questions and answers
-                                    for item in business_context_data['business_context_analysis']:
-                                        if 'question' in item and 'answer' in item:
-                                            question = item['question'].lower()
-                                            answer = item['answer']
-                                            
-                                            # Categorize based on question content
-                                            if any(keyword in question for keyword in ['target', 'audience', 'demographic', 'customer']):
-                                                target_audience_info += f"- {item['question']}: {answer}\n"
-                                            elif any(keyword in question for keyword in ['service', 'product', 'offering', 'provide']):
-                                                service_details += f"- {item['question']}: {answer}\n"
-                                            elif any(keyword in question for keyword in ['unique', 'different', 'competitive', 'advantage', 'usp']):
-                                                unique_selling_points += f"- {item['question']}: {answer}\n"
-                                            elif any(keyword in question for keyword in ['pain', 'problem', 'challenge', 'issue', 'need']):
-                                                customer_pain_points += f"- {item['question']}: {answer}\n"
-                                            elif any(keyword in question for keyword in ['brand', 'voice', 'tone', 'style', 'communication']):
-                                                brand_voice += f"- {item['question']}: {answer}\n"
-                                    
-                                    # Add categorized information to the prompt
-                                    business_context_description += "DETAILED BUSINESS INSIGHTS:\n\n"
-                                    
-                                    if target_audience_info:
-                                        business_context_description += f"TARGET AUDIENCE INFORMATION:\n{target_audience_info}\n"
-                                    
-                                    if service_details:
-                                        business_context_description += f"SERVICE/PRODUCT DETAILS:\n{service_details}\n"
-                                    
-                                    if unique_selling_points:
-                                        business_context_description += f"UNIQUE SELLING POINTS:\n{unique_selling_points}\n"
-                                    
-                                    if customer_pain_points:
-                                        business_context_description += f"CUSTOMER PAIN POINTS:\n{customer_pain_points}\n"
-                                    
-                                    if brand_voice:
-                                        business_context_description += f"BRAND VOICE AND STYLE:\n{brand_voice}\n"
-                                    
-                                    # Add a fallback section with all Q&A for any that didn't fit categories
-                                    business_context_description += "ADDITIONAL INSIGHTS:\n"
-                                    for item in business_context_data['business_context_analysis']:
-                                        if 'question' in item and 'answer' in item:
-                                            question = item['question'].lower()
-                                            # Only include if not already categorized
-                                            if not any(keyword in question for keyword in ['target', 'audience', 'demographic', 'customer', 
-                                                                                         'service', 'product', 'offering', 'provide',
-                                                                                         'unique', 'different', 'competitive', 'advantage', 'usp',
-                                                                                         'pain', 'problem', 'challenge', 'issue', 'need',
-                                                                                         'brand', 'voice', 'tone', 'style', 'communication']):
-                                                business_context_description += f"- {item['question']}: {item['answer'][:150]}...\n"
-                                
-                                business_context_description += """
-                                CRITICAL INSTRUCTIONS FOR USING BUSINESS CONTEXT DATA:
-                                
-                                1. You MUST use the specific details from the business context analysis in EACH panel.
-                                2. DO NOT create generic content - every panel must contain specific information from the analysis.
-                                3. Use the TARGET AUDIENCE information to tailor the visual style and messaging.
-                                4. Use the SERVICE/PRODUCT DETAILS for accurate representation of what the business offers.
-                                5. Incorporate UNIQUE SELLING POINTS to highlight what makes this business special.
-                                6. Address CUSTOMER PAIN POINTS to show how the business solves real problems.
-                                7. Match the BRAND VOICE AND STYLE in all text elements.
-                                """
-                            
-                            # Base prompt that's always included
-                            prompt = f"""
+                            # Prepare prompt for Gemini to generate 4 coordinated image prompts
+                            base_prompt = f"""
                             Based on this main concept: "{storyboard_concept}"
                             
-                            {business_context_description}
-                            
-                            Create 4 coordinated but DIFFERENT image prompts that tell a cohesive visual story for professional business use. 
-                            Each image should focus on a DIFFERENT aspect of the business while maintaining visual consistency.
+                            Create 4 coordinated image prompts that tell a cohesive visual story for professional business use. Each image should include text elements and professional design details.
                             
                             The 4 prompts should:
                             1. Follow the same visual style and aesthetic for brand consistency
@@ -2412,24 +2343,14 @@ def image_creator_page():
                             3. Incorporate professional design elements (like logo placement, branded colors, or UI mockups)
                             4. Work together as a cohesive marketing campaign or product story
                             5. Be detailed enough to create professional-looking business content
-                            6. Use the same color palette and visual theme across all 4 images
+                            6. CRITICAL: Use EXACTLY the same color palette and visual theme across all 4 images
                             7. Maintain consistent lighting, mood, and stylistic elements throughout the series
-                            
-                            CRITICAL: Each panel must focus on a DIFFERENT aspect of the business, such as:
-                            - Panel 1: Product/service details or main offering - MUST include SPECIFIC services/products mentioned in the business context analysis
-                            - Panel 2: How to use the product/service or benefits - MUST include ACTUAL steps or benefits mentioned in the business context analysis
-                            - Panel 3: Customer testimonial or use case scenario - MUST address SPECIFIC pain points mentioned in the business context analysis
-                            - Panel 4: Call to action or contact information - MUST include SPECIFIC call to action relevant to the target audience identified in the business context analysis
-                            
-                            DO NOT make all panels show the same thing with minor variations. Each panel should tell a different part of the story.
-                            DO NOT use generic descriptions - be specific to this business based on the context analysis.
-                            DO NOT invent details that aren't in the business context analysis - use the actual information provided.
                             """
                             
                             # Add color palette information to the prompt if available
                             if 'color_palette' in st.session_state and st.session_state.color_palette:
                                 color_palette_str = ", ".join(st.session_state.color_palette)
-                                prompt += f"""
+                                base_prompt += f"""
                             8. CRITICAL: Use EXACTLY these specific colors in all images: {color_palette_str}
                             9. Make sure these exact hex colors are prominently featured in all 4 images
                             """
@@ -2455,8 +2376,78 @@ def image_creator_page():
                                 Create 4 DIFFERENT but RELATED images that work together as a cohesive advertising campaign.
                                 Each image should have its own unique focus while maintaining brand consistency across all panels.
                                 """
+                            else:
+                                # Enhanced instructions for when no reference images are provided
+                                reference_elements = """
+                                IMPORTANT: Since no reference images were provided, create highly detailed and professional designs with:
                                 
-                                prompt += reference_elements
+                                1. Precise descriptions of visual elements (specific colors, objects, layouts)
+                                2. Professional composition and lighting details
+                                3. Clear text placement and hierarchy
+                                4. Brand-appropriate styling
+                                5. Realistic and high-quality visual elements
+                                6. CRITICAL: Use EXACTLY the same color palette across all 4 images (specify exact colors like "deep navy blue #1a2b3c" and "warm gold #d4af37")
+                                """
+                            
+                            # Example format
+                            example_format = """
+                            For each prompt, include:
+                            - The main visual scene or composition
+                            - Specific text to include in the image (headlines, taglines, etc.)
+                            - Design elements (layout suggestions, color schemes, etc.)
+                            - Professional context (how it would be used in business)
+                            
+                            Format your response as a JSON array with 4 detailed prompts, like this:
+                            """
+                            
+                            # Add color palette example if available
+                            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                color_examples = ", ".join(st.session_state.color_palette[:3]) if len(st.session_state.color_palette) > 2 else ", ".join(st.session_state.color_palette)
+                                example = f"""["Professional business image with modern office setting. TEXT: 'Innovation Starts Here' in bold sans-serif font at top. Clean layout using EXACTLY these colors: {color_examples}, showing team collaboration.", "Prompt 2", "Prompt 3", "Prompt 4"]"""
+                            else:
+                                example = """["Professional business image with modern office setting. TEXT: 'Innovation Starts Here' in bold sans-serif font at top. Clean layout with blue and white color scheme, showing team collaboration.", "Prompt 2", "Prompt 3", "Prompt 4"]"""
+                            
+                            # Final instruction
+                            final_instruction = """
+                            Do not include any explanations or additional text - ONLY return the JSON array.
+                            """
+                            
+                            # Combine all parts of the prompt
+                            prompt = base_prompt + reference_elements + example_format + example + final_instruction
+
+                            # Add color palette example if available
+                            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                color_examples = ", ".join(st.session_state.color_palette[:3]) if len(st.session_state.color_palette) > 2 else ", ".join(st.session_state.color_palette)
+                                prompt = prompt.replace(
+                                    "Clean layout with blue and white color scheme", 
+                                    f"Clean layout using EXACTLY these colors: {color_examples}"
+                                )
+                            
+                            prompt += """
+                            Do not include any explanations or additional text - ONLY return the JSON array.
+                            """
+
+                            # Enhanced prompt that incorporates reference images for storyboard generation
+                            reference_elements = ""
+                            has_references = False
+                            
+                            if 'reference_descriptions' in st.session_state and st.session_state.reference_descriptions:
+                                has_references = True
+                                reference_elements = "Reference Image Descriptions:\n\n"
+                                for i, desc in enumerate(st.session_state.reference_descriptions):
+                                    reference_elements += f"Reference Image {i+1}: {desc}\n\n"
+                                
+                                reference_elements += """
+                                IMPORTANT: When using elements from reference images, you MUST reproduce them EXACTLY as they appear.
+                                Not every image needs to use reference elements, but when you do use them:
+                                
+                                1. Be EXTREMELY specific about what you're incorporating
+                                2. Use exact wording like "EXACT SAME black long plate table as in Reference Image X" 
+                                3. Mention the specific reference image number
+                                
+                                Create 4 DIFFERENT but RELATED images that work together as a cohesive advertising campaign.
+                                Each image should have its own unique focus while maintaining brand consistency across all panels.
+                                """
                             else:
                                 # Enhanced instructions for when no reference images are provided
                                 reference_elements = """
@@ -2473,411 +2464,367 @@ def image_creator_page():
                                 Create 4 DIFFERENT but RELATED images that work together as a cohesive advertising campaign.
                                 Each image should have its own unique focus while maintaining brand consistency across all panels.
                                 """
-                                
-                                prompt += reference_elements
                             
-                            # Add example of a diverse storyboard
-                            prompt += """
-                            Example of a 4-panel storyboard with different focuses:
+                            # Base prompt that's always included
+                            prompt = f"""
+                            Based on this main concept: "{storyboard_concept}"
                             
-                            Panel 1: "Professional product showcase of a sleek coffee machine on marble countertop. Clean lighting, minimalist style. TEXT: 'Introducing CoffeePro X9' at top in modern sans-serif font. Product details and key features highlighted with subtle labels."
+                            {reference_elements}
                             
-                            Panel 2: "Person using the coffee machine with step-by-step brewing process shown. Same lighting and style as Panel 1. TEXT: 'Simple 3-Step Brewing' with numbered steps. Shows the ease of use and convenience of the product."
+                            Create 4 coordinated image prompts that tell a cohesive visual story for professional business use. Each image should include text elements and professional design details.
                             
-                            Panel 3: "Satisfied customer enjoying coffee in cozy home setting. Maintains same visual style and color palette. TEXT: 'Join 10,000+ Happy Customers' with subtle testimonial quote. Demonstrates the product benefits in real-life context."
-                            
-                            Panel 4: "Clean call-to-action design with the coffee machine logo. TEXT: 'Order Today: www.coffeepro.com' with special offer details. Contact information and social media handles included. Same visual style as previous panels."
+                            The 4 prompts should:
+                            1. Follow the same visual style and aesthetic for brand consistency
+                            2. Each include specific text elements (like headlines, taglines, or calls to action)
+                            3. Incorporate professional design elements (like logo placement, branded colors, or UI mockups)
+                            4. Work together as a cohesive marketing campaign or product story
+                            5. Be detailed enough to create professional-looking business content
+                            6. CRITICAL: Use EXACTLY the same color palette and visual theme across all 4 images
+                            7. Maintain consistent lighting, mood, and stylistic elements throughout the series
                             """
                             
-                            # Define a JSON schema for structured output
-                            schema = {
-                                "type": "object",
-                                "properties": {
-                                    "storyboard_panels": {
-                                        "type": "array",
-                                        "description": "An array of exactly 4 detailed panel descriptions for the storyboard",
-                                        "items": {
-                                            "type": "string",
-                                            "description": "A detailed description for a single panel in the storyboard"
-                                        },
-                                        "minItems": 4,
-                                        "maxItems": 4
-                                    }
-                                },
-                                "required": ["storyboard_panels"]
-                            }
+                            # Add color palette information to the prompt if available
+                            if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                color_palette_str = ", ".join(st.session_state.color_palette)
+                                prompt += f"""
+                            8. CRITICAL: Use EXACTLY these specific colors in all images: {color_palette_str}
+                            9. Make sure these exact hex colors are prominently featured in all 4 images
+                            """
+
+                            # Enhanced prompt that incorporates reference images for storyboard generation
+                            if has_references:
+                                prompt += """
+                            6. FAITHFULLY REPRODUCE specific elements from the reference images in your prompts
+                            
+                            For each prompt, include:
+                            - The main visual scene or composition
+                            - Specific text to include in the image (headlines, taglines, etc.)
+                            - Design elements (layout suggestions, color schemes, etc.)
+                            - Professional context (how it would be used in business)
+                            - SPECIFIC references to elements from reference images ONLY when used (not every panel needs reference elements)
+                            
+                            Example of a 4-panel storyboard with selective reference use:
+                            
+                            Panel 1: "Professional restaurant interior with black long plate table exactly as shown in Reference Image 2. Warm amber lighting, deep blue and gold color scheme. Customers enjoying meal. TEXT: 'Begin Your Culinary Journey', top center in gold serif font. Professional layout, elegant style."
+                            
+                            Panel 2: "Close-up of signature dish with steam rising. Same deep blue background and amber lighting as Panel 1. Rich gold accents, artistic plating. No reference image elements needed here. TEXT: 'Crafted With Passion', bottom right in matching gold serif font. Luxury food photography style."
+                            
+                            Panel 3: "Chef in white uniform using cooking technique with exact same flame pattern as Reference Image 4. Maintaining the deep blue and gold color scheme with amber lighting. TEXT: 'Mastery In Motion', centered in gold serif font. Dynamic composition, action shot."
+                            
+                            Panel 4: "Exterior night shot of restaurant with glowing signage. Deep blue night sky with gold and amber lighting elements matching previous panels. No reference elements needed. TEXT: 'Visit Us Tonight', bottom center with restaurant address in gold serif font. Elegant nighttime photography."
+                            """
+                            else:
+                                prompt += """
+                            For each prompt, include:
+                            - The main visual scene or composition
+                            - Specific text to include in the image (headlines, taglines, etc.)
+                            - Design elements (layout suggestions, color schemes, etc.)
+                            - Professional context (how it would be used in business)
+                            """
                             
                             # Add the final formatting instructions
                             prompt += """
-                            CRITICAL: Format your response as a valid JSON object with a 'storyboard_panels' array containing exactly 4 detailed prompts.
+                            Format your response as a JSON array with 4 detailed prompts, like this:
+                            ["Prompt 1", "Prompt 2", "Prompt 3", "Prompt 4"]
                             
-                            The JSON object should look EXACTLY like this format:
-                            {
-                              "storyboard_panels": [
-                                "Detailed prompt for panel 1 with SPECIFIC business details",
-                                "Detailed prompt for panel 2 with SPECIFIC business details",
-                                "Detailed prompt for panel 3 with SPECIFIC business details",
-                                "Detailed prompt for panel 4 with SPECIFIC business details"
-                              ]
-                            }
-                            
-                            Do not include any explanations, markdown formatting, or additional text - ONLY return the JSON object.
-                            Do not use escape characters like \\" - use proper JSON formatting.
-                            Each prompt should NOT start with "Panel 1", "Panel 2", etc. - just include the actual prompt content.
-                            
-                            IMPORTANT: Each prompt should be a complete, detailed description for that panel.
-                            IMPORTANT: Each prompt MUST incorporate specific details from the business context analysis.
-                            IMPORTANT: Each prompt should be at least 50 words long to provide sufficient detail for image generation.
-                            IMPORTANT: Include specific text elements (headlines, taglines) that reflect the actual business offerings.
+                            Do not include any explanations or additional text - ONLY return the JSON array.
                             """
+
+                            # Call Gemini API
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=prompt
+                            )
                             
-                            # Call Gemini API with specific response format and structured output
+                            # Parse the response to extract the 4 prompts
                             try:
-                                response = client.models.generate_content(
-                                    model="gemini-2.0-flash",
-                                    contents=[
-                                        {
-                                            "role": "user",
-                                            "parts": [{"text": prompt}]
-                                        },
-                                        {
-                                            "role": "model",
-                                            "parts": [{"text": "I'll create 4 different but cohesive storyboard panels formatted as a JSON object:"}]
-                                        },
-                                        {
-                                            "role": "user", 
-                                            "parts": [{"text": "Remember to ONLY return a valid JSON object with a 'storyboard_panels' array containing 4 strings. No other text."}]
-                                        }
-                                    ]
-                                )
+                                # Extract the JSON array from the response
+                                import json
+                                import re
                                 
-                                # Parse the response to extract the 4 prompts
-                                try:
-                                    # Extract the JSON from the response
-                                    import json
-                                    import re
-                                    
-                                    # Get the response text and parse it as JSON
-                                    response_text = response.text.strip()
-                                    
-                                    # Log the raw response for debugging
-                                    st.session_state.raw_response = response_text
-                                    
-                                    # Try different approaches to extract valid JSON
-                                    storyboard_prompts = None
-                                    
-                                    # First attempt: Find anything that looks like a JSON object
-                                    json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-                                    
-                                    if json_match:
-                                        json_str = json_match.group(0)
+                                # Clean the response text to extract just the JSON array
+                                response_text = response.text.strip()
+                                # Find anything that looks like a JSON array
+                                json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+                                
+                                if json_match:
+                                    json_str = json_match.group(0)
+                                    try:
+                                        storyboard_prompts = json.loads(json_str)
+                                    except json.JSONDecodeError as e:
+                                        # Try to fix common JSON formatting issues
+                                        # Replace single quotes with double quotes
+                                        json_str = json_str.replace("'", '"')
+                                        # Fix unescaped quotes within strings
+                                        json_str = re.sub(r'(?<!\\)"(?=(.*?".*?"))', r'\"', json_str)
                                         try:
-                                            # Replace escaped quotes and fix common JSON issues
-                                            json_str = json_str.replace('\\"', '"')
-                                            json_str = json_str.replace('\\n', ' ')
-                                            json_str = re.sub(r'\\(?!["\\/bfnrt])', '', json_str)
-                                            response_json = json.loads(json_str)
-                                            
-                                            # Check if the response has the expected structure
-                                            if "storyboard_panels" in response_json and isinstance(response_json["storyboard_panels"], list):
-                                                storyboard_prompts = response_json["storyboard_panels"]
+                                            storyboard_prompts = json.loads(json_str)
+                                        except json.JSONDecodeError:
+                                            # If still failing, try a more aggressive approach
+                                            # Split by commas and manually construct an array
+                                            parts = re.findall(r'"[^"]*"', json_str)
+                                            if len(parts) >= 4:
+                                                storyboard_prompts = parts[:4]
                                             else:
-                                                st.warning("Response doesn't have the expected structure. Trying alternative parsing.")
-                                        except json.JSONDecodeError as e:
-                                            st.warning(f"Initial JSON parsing failed: {str(e)}")
-                                            # Try to fix common JSON formatting issues
-                                            # Replace single quotes with double quotes
-                                            json_str = json_str.replace("'", '"')
-                                            # Fix unescaped quotes within strings
-                                            json_str = re.sub(r'(?<!\\)"(?=(.*?".*?"))', r'\"', json_str)
-                                            try:
-                                                response_json = json.loads(json_str)
-                                                if "storyboard_panels" in response_json and isinstance(response_json["storyboard_panels"], list):
-                                                    storyboard_prompts = response_json["storyboard_panels"]
-                                                else:
-                                                    st.warning("Response doesn't have the expected structure after fixing JSON.")
-                                            except json.JSONDecodeError:
-                                                st.warning("Second JSON parsing attempt failed")
-                                    
-                                    # If JSON object parsing failed, try to find a JSON array
-                                    if not storyboard_prompts:
-                                        json_array_match = re.search(r'\[.*\]', response_text, re.DOTALL)
-                                        if json_array_match:
-                                            json_array_str = json_array_match.group(0)
-                                            try:
-                                                # Clean up the JSON array string
-                                                json_array_str = json_array_str.replace('\\"', '"')
-                                                json_array_str = json_array_str.replace('\\n', ' ')
-                                                json_array_str = re.sub(r'\\(?!["\\/bfnrt])', '', json_array_str)
-                                                array_data = json.loads(json_array_str)
-                                                if isinstance(array_data, list) and len(array_data) > 0:
-                                                    storyboard_prompts = array_data
-                                                    st.info("Found a JSON array instead of the expected object structure.")
-                                            except json.JSONDecodeError:
-                                                st.warning("JSON array parsing failed")
-                                    
-                                    # If still no prompts, try to extract panel content
-                                    if not storyboard_prompts:
-                                        # Look for panel markers in the text
-                                        panel_pattern = r'Panel\s*\d+[:\s]*(.*?)(?=Panel\s*\d+[:\s]*|$)'
-                                        panel_matches = re.findall(panel_pattern, response_text, re.DOTALL | re.IGNORECASE)
-                                        
-                                        if len(panel_matches) >= 4:
-                                            # Clean up the extracted panel content
-                                            storyboard_prompts = [p.strip().replace('\n', ' ') for p in panel_matches[:4]]
-                                            st.info("Extracted panel content from text markers.")
+                                                raise ValueError("Could not parse the response into 4 prompts")
+                                else:
+                                    # Fallback: try to parse the entire response as JSON
+                                    try:
+                                        storyboard_prompts = json.loads(response_text)
+                                    except json.JSONDecodeError:
+                                        # Last resort: split by newlines and take 4 non-empty lines
+                                        lines = [line.strip() for line in response_text.split('\n') if line.strip()]
+                                        if len(lines) >= 4:
+                                            storyboard_prompts = lines[:4]
                                         else:
-                                            # Try to extract any quoted strings that might be prompts
-                                            quoted_strings = re.findall(r'"([^"]*)"', response_text)
-                                            if len(quoted_strings) >= 4:
-                                                storyboard_prompts = quoted_strings[:4]
-                                                st.info("Extracted prompts from quoted strings.")
-                                            else:
-                                                # Last resort: split by newlines and take 4 non-empty lines
-                                                lines = [line.strip() for line in response_text.split('\n') if line.strip()]
-                                                if len(lines) >= 4:
-                                                    storyboard_prompts = lines[:4]
-                                                    st.info("Extracted prompts from text lines.")
-                                                else:
-                                                    st.warning("Could not extract 4 prompts from the response.")
-                                    
-                                    # If all parsing attempts failed, create fallback prompts
-                                    if not storyboard_prompts or len(storyboard_prompts) < 4:
-                                        st.error("Could not extract valid storyboard prompts from the response. Please regenerate the storyboard.")
-                                        # Set a flag to indicate that no valid prompts were found
-                                        st.session_state.no_valid_storyboard_prompts = True
-                                        # Return early to prevent further processing
-                                        return
-                                except Exception as e:
-                                    st.error(f"Error processing storyboard response: {e}")
-                                    st.error("Please regenerate the storyboard to get valid prompts.")
-                                    st.session_state.no_valid_storyboard_prompts = True
-                                    return
-                            except Exception as e:
-                                st.error(f"Error calling Gemini API: {e}")
-                                st.error("Please try again to generate valid storyboard prompts.")
-                                st.session_state.no_valid_storyboard_prompts = True
-                                return
+                                            raise ValueError("Could not extract 4 prompts from the response")
                                 
-                            # Clean up the prompts to remove any remaining escape characters or formatting issues
-                            for i in range(len(storyboard_prompts)):
-                                if isinstance(storyboard_prompts[i], str):
-                                    # Remove any remaining quotes at the beginning or end
-                                    storyboard_prompts[i] = storyboard_prompts[i].strip('"')
-                                    # Normalize whitespace
-                                    storyboard_prompts[i] = ' '.join(storyboard_prompts[i].split())
-                            
-                            # Store the prompts in session state
-                            st.session_state.storyboard_prompts = storyboard_prompts
-                            
-                            # Display the 4 prompts
-                            st.subheader("Generated Storyboard Prompts")
-                            
-                            # Create a 2x2 grid to display the prompts
-                            prompt_cols1 = st.columns(2)
-                            prompt_cols2 = st.columns(2)
-                            
-                            with prompt_cols1[0]:
-                                st.markdown("### Panel 1")
-                                st.markdown(f"""
-                                <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
-                                    <p style="font-family: monospace; margin: 0;">{storyboard_prompts[0]}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            with prompt_cols1[1]:
-                                st.markdown("### Panel 2")
-                                st.markdown(f"""
-                                <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
-                                    <p style="font-family: monospace; margin: 0;">{storyboard_prompts[1]}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            with prompt_cols2[0]:
-                                st.markdown("### Panel 3")
-                                st.markdown(f"""
-                                <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
-                                    <p style="font-family: monospace; margin: 0;">{storyboard_prompts[2]}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            with prompt_cols2[1]:
-                                st.markdown("### Panel 4")
-                                st.markdown(f"""
-                                <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
-                                    <p style="font-family: monospace; margin: 0;">{storyboard_prompts[3]}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            # Generate the 4 images
-                            st.subheader("Generating Storyboard Images...")
-                            
-                            # Create a progress bar
-                            progress_bar = st.progress(0)
-                            
-                            # Store the generated image URLs
-                            storyboard_images = []
-                            
-                            # Generate each image
-                            for i, prompt in enumerate(storyboard_prompts):
-                                with st.spinner(f"Generating image {i+1} of 4..."):
-                                    # Update progress
-                                    progress_bar.progress((i) / 4)
-                                    
-                                    # Prepare color palette for API if available
-                                    color_palette_param = None
-                                    if 'color_palette' in st.session_state and st.session_state.color_palette:
-                                        # Create color palette with members format
-                                        color_palette_param = {
-                                            "members": []
-                                        }
-                                        
-                                        # Add each color with decreasing weights
-                                        num_colors = len(st.session_state.color_palette)
-                                        for j, color in enumerate(st.session_state.color_palette):
-                                            # Calculate weight - start with 1.0 and decrease for each color
-                                            # Ensure minimum weight is 0.05
-                                            weight = max(0.05, 1.0 - (j * (0.95 / max(1, num_colors - 1))))
-                                            
-                                            color_palette_param["members"].append({
-                                                "color_hex": color,
-                                                "color_weight": round(weight, 2)  # Round to 2 decimal places
-                                            })
-                                    
-                                    # Generate the image
-                                    response = generate_image_with_ideogram(
-                                        prompt=prompt,
-                                        style=style,
-                                        aspect_ratio=aspect_ratio,
-                                        negative_prompt=storyboard_negative_prompt if storyboard_negative_prompt else None,
-                                        num_images=1,
-                                        model=selected_model,
-                                        color_palette=color_palette_param
-                                    )
-                                    
-                                    if response and "data" in response and len(response["data"]) > 0:
-                                        # Extract the image URL
-                                        if "url" in response["data"][0]:
-                                            storyboard_images.append(response["data"][0]["url"])
-                                        elif "image_url" in response["data"][0]:
-                                            storyboard_images.append(response["data"][0]["image_url"])
-                                    else:
-                                        st.error(f"Failed to generate image {i+1}. Please try again.")
+                                # Ensure we have exactly 4 prompts
+                                if not isinstance(storyboard_prompts, list) or len(storyboard_prompts) != 4:
+                                    raise ValueError("Did not receive exactly 4 prompts")
                                 
-                                # Update progress
-                                progress_bar.progress((i + 1) / 4)
-                            
-                            # Complete the progress bar
-                            progress_bar.progress(1.0)
-                            
-                            # Store the storyboard images in session state
-                            if len(storyboard_images) == 4:
-                                st.session_state.storyboard_images = storyboard_images
+                                # Store the prompts in session state
+                                st.session_state.storyboard_prompts = storyboard_prompts
                                 
-                                # Display the storyboard
-                                st.subheader("Your Storyboard")
+                                # Display the 4 prompts
+                                st.subheader("Generated Storyboard Prompts")
                                 
-                                # Create a 2x2 grid to display the images
-                                image_cols1 = st.columns(2)
-                                image_cols2 = st.columns(2)
+                                # Create a 2x2 grid to display the prompts
+                                prompt_cols1 = st.columns(2)
+                                prompt_cols2 = st.columns(2)
                                 
-                                with image_cols1[0]:
+                                with prompt_cols1[0]:
                                     st.markdown("### Panel 1")
-                                    st.image(storyboard_images[0], use_column_width=True)
-                                    st.markdown(f"**Prompt:** {storyboard_prompts[0]}")
-                                    st.markdown(
-                                        f"""
-                                        <div style="text-align: center;">
-                                            <a href="{storyboard_images[0]}" download="storyboard_panel1.jpg" 
-                                            style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
-                                            text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
-                                            Download Image
-                                            </a>
-                                        </div>
-                                        """, 
-                                        unsafe_allow_html=True
-                                    )
-                                
-                                with image_cols1[1]:
-                                    st.markdown("### Panel 2")
-                                    st.image(storyboard_images[1], use_column_width=True)
-                                    st.markdown(f"**Prompt:** {storyboard_prompts[1]}")
-                                    st.markdown(
-                                        f"""
-                                        <div style="text-align: center;">
-                                            <a href="{storyboard_images[1]}" download="storyboard_panel2.jpg" 
-                                            style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
-                                            text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
-                                            Download Image
-                                            </a>
-                                        </div>
-                                        """, 
-                                        unsafe_allow_html=True
-                                    )
-                                
-                                with image_cols2[0]:
-                                    st.markdown("### Panel 3")
-                                    st.image(storyboard_images[2], use_column_width=True)
-                                    st.markdown(f"**Prompt:** {storyboard_prompts[2]}")
-                                    st.markdown(
-                                        f"""
-                                        <div style="text-align: center;">
-                                            <a href="{storyboard_images[2]}" download="storyboard_panel3.jpg" 
-                                            style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
-                                            text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
-                                            Download Image
-                                            </a>
-                                        </div>
-                                        """, 
-                                        unsafe_allow_html=True
-                                    )
-                                
-                                with image_cols2[1]:
-                                    st.markdown("### Panel 4")
-                                    st.image(storyboard_images[3], use_column_width=True)
-                                    st.markdown(f"**Prompt:** {storyboard_prompts[3]}")
-                                    st.markdown(
-                                        f"""
-                                        <div style="text-align: center;">
-                                            <a href="{storyboard_images[3]}" download="storyboard_panel4.jpg" 
-                                            style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
-                                            text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
-                                            Download Image
-                                            </a>
-                                        </div>
-                                        """, 
-                                        unsafe_allow_html=True
-                                    )
-                                
-                                # Add a download all button
-                                st.markdown(
-                                    f"""
-                                    <div style="text-align: center; margin-top: 30px;">
-                                        <p>Download all images individually using the buttons above each panel.</p>
+                                    st.markdown(f"""
+                                    <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                                        <p style="font-family: monospace; margin: 0;">{storyboard_prompts[0]}</p>
                                     </div>
-                                    """, 
-                                    unsafe_allow_html=True
-                                )
+                                    """, unsafe_allow_html=True)
                                 
-                                st.success("✅ Storyboard generated successfully!")
-                            else:
-                                st.error("Failed to generate all storyboard images. Please try again.")
+                                with prompt_cols1[1]:
+                                    st.markdown("### Panel 2")
+                                    st.markdown(f"""
+                                    <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                                        <p style="font-family: monospace; margin: 0;">{storyboard_prompts[1]}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                with prompt_cols2[0]:
+                                    st.markdown("### Panel 3")
+                                    st.markdown(f"""
+                                    <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                                        <p style="font-family: monospace; margin: 0;">{storyboard_prompts[2]}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                with prompt_cols2[1]:
+                                    st.markdown("### Panel 4")
+                                    st.markdown(f"""
+                                    <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; border-left: 5px solid #4285F4;">
+                                        <p style="font-family: monospace; margin: 0;">{storyboard_prompts[3]}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Generate the 4 images
+                                st.subheader("Generating Storyboard Images...")
+                                
+                                # Create a progress bar
+                                progress_bar = st.progress(0)
+                                
+                                # Store the generated image URLs
+                                storyboard_images = []
+                                
+                                # Generate each image
+                                for i, prompt in enumerate(storyboard_prompts):
+                                    with st.spinner(f"Generating image {i+1} of 4..."):
+                                        # Update progress
+                                        progress_bar.progress((i) / 4)
+                                        
+                                        # Prepare color palette for API if available
+                                        color_palette_param = None
+                                        if 'color_palette' in st.session_state and st.session_state.color_palette:
+                                            # Create color palette with members format
+                                            color_palette_param = {
+                                                "members": []
+                                            }
+                                            
+                                            # Add each color with decreasing weights
+                                            num_colors = len(st.session_state.color_palette)
+                                            for j, color in enumerate(st.session_state.color_palette):
+                                                # Calculate weight - start with 1.0 and decrease for each color
+                                                # Ensure minimum weight is 0.05
+                                                weight = max(0.05, 1.0 - (j * (0.95 / max(1, num_colors - 1))))
+                                                
+                                                color_palette_param["members"].append({
+                                                    "color_hex": color,
+                                                    "color_weight": round(weight, 2)  # Round to 2 decimal places
+                                                })
+                                        
+                                        # Ensure prompt is a string
+                                        current_prompt = prompt
+                                        if not isinstance(current_prompt, str):
+                                            st.warning(f"Prompt {i+1} is not in the expected format. Converting to a string format.")
+                                            if isinstance(current_prompt, dict) and 'prompt' in current_prompt:
+                                                current_prompt = current_prompt['prompt']
+                                            else:
+                                                try:
+                                                    import json
+                                                    current_prompt = json.dumps(current_prompt)
+                                                except:
+                                                    current_prompt = str(current_prompt)
+                                        
+                                        # Generate the image
+                                        response = generate_image_with_ideogram(
+                                            prompt=current_prompt,
+                                            style=style,
+                                            aspect_ratio=aspect_ratio,
+                                            negative_prompt=storyboard_negative_prompt if storyboard_negative_prompt else None,
+                                            num_images=1,
+                                            model=selected_model,
+                                            color_palette=color_palette_param
+                                        )
+                                        
+                                        if response and "data" in response and len(response["data"]) > 0:
+                                            # Extract the image URL
+                                            if "url" in response["data"][0]:
+                                                storyboard_images.append(response["data"][0]["url"])
+                                            elif "image_url" in response["data"][0]:
+                                                storyboard_images.append(response["data"][0]["image_url"])
+                                        else:
+                                            st.error(f"Failed to generate image {i+1}. Please try again.")
+                                    
+                                    # Update progress
+                                    progress_bar.progress((i + 1) / 4)
+                                
+                                # Complete the progress bar
+                                progress_bar.progress(1.0)
+                                
+                                # Store the storyboard images in session state
+                                if len(storyboard_images) == 4:
+                                    st.session_state.storyboard_images = storyboard_images
+                                    
+                                    # Display the storyboard
+                                    st.subheader("Your Storyboard")
+                                    
+                                    # Create a 2x2 grid to display the images
+                                    image_cols1 = st.columns(2)
+                                    image_cols2 = st.columns(2)
+                                    
+                                    with image_cols1[0]:
+                                        st.markdown("### Panel 1")
+                                        st.image(storyboard_images[0], use_column_width=True)
+                                        st.markdown(f"**Prompt:** {storyboard_prompts[0]}")
+                                        st.markdown(
+                                            f"""
+                                            <div style="text-align: center;">
+                                                <a href="{storyboard_images[0]}" download="storyboard_panel1.jpg" 
+                                                style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
+                                                text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
+                                                Download Image
+                                                </a>
+                                            </div>
+                                            """, 
+                                            unsafe_allow_html=True
+                                        )
+                                    
+                                    with image_cols1[1]:
+                                        st.markdown("### Panel 2")
+                                        st.image(storyboard_images[1], use_column_width=True)
+                                        st.markdown(f"**Prompt:** {storyboard_prompts[1]}")
+                                        st.markdown(
+                                            f"""
+                                            <div style="text-align: center;">
+                                                <a href="{storyboard_images[1]}" download="storyboard_panel2.jpg" 
+                                                style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
+                                                text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
+                                                Download Image
+                                                </a>
+                                            </div>
+                                            """, 
+                                            unsafe_allow_html=True
+                                        )
+                                    
+                                    with image_cols2[0]:
+                                        st.markdown("### Panel 3")
+                                        st.image(storyboard_images[2], use_column_width=True)
+                                        st.markdown(f"**Prompt:** {storyboard_prompts[2]}")
+                                        st.markdown(
+                                            f"""
+                                            <div style="text-align: center;">
+                                                <a href="{storyboard_images[2]}" download="storyboard_panel3.jpg" 
+                                                style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
+                                                text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
+                                                Download Image
+                                                </a>
+                                            </div>
+                                            """, 
+                                            unsafe_allow_html=True
+                                        )
+                                    
+                                    with image_cols2[1]:
+                                        st.markdown("### Panel 4")
+                                        st.image(storyboard_images[3], use_column_width=True)
+                                        st.markdown(f"**Prompt:** {storyboard_prompts[3]}")
+                                        st.markdown(
+                                            f"""
+                                            <div style="text-align: center;">
+                                                <a href="{storyboard_images[3]}" download="storyboard_panel4.jpg" 
+                                                style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
+                                                text-decoration: none; border-radius: 5px; font-size: 0.8rem;">
+                                                Download Image
+                                                </a>
+                                            </div>
+                                            """, 
+                                            unsafe_allow_html=True
+                                        )
+                                    
+                                    # Add a download all button
+                                    st.markdown(
+                                        f"""
+                                        <div style="text-align: center; margin-top: 30px;">
+                                            <p>Download all images individually using the buttons above each panel.</p>
+                                        </div>
+                                        """, 
+                                        unsafe_allow_html=True
+                                    )
+                                    
+                                    st.success("✅ Storyboard generated successfully!")
+                                else:
+                                    st.error("Failed to generate all storyboard images. Please try again.")
+                            
+                            except Exception as e:
+                                st.error(f"Error processing storyboard prompts: {e}")
+                                st.warning("""
+                                ### Troubleshooting Tips
+                                
+                                Please try again with a different concept or settings. Here are some suggestions:
+                                
+                                1. **Simplify your concept**: Make it more clear and specific
+                                2. **Reduce color palette complexity**: Try using fewer colors
+                                3. **Try a different model**: V_1_TURBO might work better in some cases
+                                4. **Remove special characters**: Avoid using quotes or special characters in your concept
+                                5. **Try again later**: The AI service might be experiencing high load
+                                
+                                If the problem persists, try generating a new concept first.
+                                """)
                         
                         except Exception as e:
-                            st.error(f"Error processing storyboard prompts: {e}")
-                            st.warning("""
-                            ### Troubleshooting Tips
-                            
-                            Please try again with a different concept or settings. Here are some suggestions:
-                            
-                            1. **Simplify your concept**: Make it more clear and specific
-                            2. **Reduce color palette complexity**: Try using fewer colors
-                            3. **Try a different model**: V_1_TURBO might work better in some cases
-                            4. **Remove special characters**: Avoid using quotes or special characters in your concept
-                            5. **Try again later**: The AI service might be experiencing high load
-                            
-                            If the problem persists, try generating a new concept first.
-                            """)
+                            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                                st.error("""
+                                ### Gemini AI Service Temporarily Unavailable
+                                
+                                The AI service is currently experiencing high demand or maintenance. Please try again in a few minutes.
+                                
+                                **Alternative options:**
+                                - Try refreshing the page
+                                - Try a different browser
+                                - Check your internet connection
+                                - Try again later when the service load may be lower
+                                
+                                Technical details: {e}
+                                """)
+                            else:
+                                st.error(f"Error calling AI service: {e}")
             
             st.markdown("</div>", unsafe_allow_html=True)
         

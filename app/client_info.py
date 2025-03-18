@@ -495,7 +495,7 @@ def client_information_page():
                             
                             # Create prompt for Gemini
                             prompt = f"""
-                            You are an expert social media analyst and market researcher. Analyze the following social media data to provide detailed insights about the target audience.
+                            You are an expert social media analyst and market researcher. Analyze the following social media data to provide detailed insights about the business and its target audience.
                             
                             SOCIAL MEDIA DATA:
                             - Content: {content_text}
@@ -515,8 +515,13 @@ def client_information_page():
                             3. If there isn't enough information to answer a question confidently, acknowledge the limitations and provide the best analysis based ONLY on what's available.
                             4. Be specific about what you can observe from the data and avoid speculative claims.
                             5. When discussing demographics or psychographics, only mention patterns that are clearly indicated in the content or engagement metrics.
+                            6. In the summary, FIRST describe the business (what they do, services, etc.) before discussing the target audience.
                             
                             Format your response as a JSON object with an array of question-answer pairs (including question_id) and a summary.
+                            The summary should be structured in two clear paragraphs:
+                            1. First paragraph: Describe what Convert Cake does as a business, their services, and key offerings
+                            2. Second paragraph: Describe the target audience and how Convert Cake addresses their needs
+                            
                             Be specific and provide actionable insights, but only based on the actual data provided.
                             """
                             
