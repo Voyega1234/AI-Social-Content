@@ -1,137 +1,89 @@
 # AI Social Content Generator
 
-A powerful AI-powered tool for creating engaging social media content, generating professional images, and analyzing performance metrics.
+A comprehensive application for generating social media content, creating AI images, analyzing client information, and visualizing data analytics using Streamlit and AI services.
 
-![AI Social Content Generator](https://img.shields.io/badge/AI-Social%20Content%20Generator-blue)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.32.0-FF4B4B)
-![Python](https://img.shields.io/badge/Python-3.9+-blue)
+## Features
 
-## 🌟 Features
+- **Content Generator**: Create social media content for various platforms using AI
+- **Image Creator**: Generate images using Ideogram API with various prompts and styles
+- **Client Information**: Analyze client information and generate audience insights
+- **Data Analytics**: Visualize social media performance metrics and gain insights
 
-### 📝 Content Generator
-- Create engaging social media posts for multiple platforms
-- Customize content based on business type and target audience
-- Generate variations of content with different tones and styles
-- Save and export content for later use
+## Directory Structure
 
-### 🎨 Image Creator
-- Generate professional AI images for social media
-- Create cohesive storyboards with multiple related images
-- Customize images with specific color palettes
-- Upload reference images to guide the AI generation
-- Support for various aspect ratios and image styles
+```
+app/
+├── data/               # Database and data files
+├── pages/              # Page classes for the application
+│   ├── client_info.py  # Client information page
+│   ├── content_generator.py  # Content generator page
+│   ├── data_analytics.py  # Data analytics page
+│   ├── image_creator.py  # Image creator page
+├── services/           # API service integrations
+│   ├── gemini_service.py  # Google Gemini API service
+│   ├── ideogram_service.py  # Ideogram API service
+├── static/             # Static files (CSS, images)
+│   ├── logo.png        # Application logo
+│   ├── style.css       # CSS styles
+├── utils/              # Utility functions
+│   ├── database.py     # Database manager
+│   ├── ui.py           # UI utility functions
+│   ├── validators.py   # Input validation functions
+├── main.py             # Main application entry point
+```
 
-### 📊 Data Analytics
-- Track social media performance metrics
-- Analyze engagement patterns across platforms
-- Visualize data with interactive charts and graphs
-- Generate insights and recommendations
+## Installation
 
-## 🚀 Getting Started
-
-### Prerequisites
-- Python 3.9 or higher
-- PostgreSQL database (for analytics features)
-- Gemini API key (for content generation)
-- Ideogram API key (for image generation)
-
-### Installation
-
-1. Clone the repository
-   ```bash
-   git clone https://github.com/yourusername/AI-Social-Content.git
-   cd AI-Social-Content
-   ```
-
-2. Create and activate a virtual environment (recommended)
-   ```bash
-   python -m venv .venv
-   # On Windows
-   .venv\Scripts\activate
-   # On macOS/Linux
-   source .venv/bin/activate
-   ```
-
-3. Install dependencies
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Create a `.env` file in the root directory with the following variables:
-   ```
-   GEMINI_API_KEY=your_gemini_api_key
-   IDEOGRAM_API_KEY=your_ideogram_api_key
-   DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-   ```
-
-### Database Setup
-
-1. Create a PostgreSQL database
-2. Run the database setup script
-   ```bash
-   python app/db_setup.py
-   ```
-3. Verify the database tables were created correctly
-   ```bash
-   python app/check_table.py
-   ```
-
-## 🖥️ Running the Application
-
-Start the Streamlit application:
-
+1. Clone the repository:
 ```bash
-streamlit run app/app.py
+git clone https://github.com/yourusername/ai-social-content.git
+cd ai-social-content
 ```
 
-The application will be available at http://localhost:8501 in your web browser.
-
-## 🧩 Application Structure
-
-```
-AI-Social-Content/
-├── app/                      # Main application directory
-│   ├── app.py                # Main Streamlit application
-│   ├── __init__.py           # Package initialization
-│   ├── db_setup.py           # Database setup script
-│   ├── check_table.py        # Database verification script
-│   └── static/               # Static assets
-│       └── css/              # CSS stylesheets
-├── .env                      # Environment variables (not tracked in git)
-├── requirements.txt          # Python dependencies
-└── README.md                 # Project documentation
+2. Create a virtual environment and activate it:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-## 🛠️ Technologies Used
+3. Install the required packages:
+```bash
+pip install -r requirements.txt
+```
 
-- **Streamlit**: Web application framework
-- **Gemini AI**: Content generation
-- **Ideogram API**: Image generation
-- **PostgreSQL**: Database for analytics
-- **Pandas & Plotly**: Data processing and visualization
-- **SQLAlchemy**: Database ORM
+4. Set up environment variables:
+Create a `.env` file in the root directory with the following variables:
+```
+GEMINI_API_KEY=your_gemini_api_key
+IDEOGRAM_API_KEY=your_ideogram_api_key
+```
 
-## 🔍 Key Features Explained
+## Usage
 
-### Color Palette Management
-The application allows users to define custom color palettes for image generation. These colors are passed to the Ideogram API to ensure brand consistency across generated images.
+1. Run the application:
+```bash
+streamlit run app/main.py
+```
 
-### Storyboard Generation
-Create a series of 4 related images that tell a cohesive visual story, perfect for marketing campaigns or product launches. The AI ensures consistent styling and color usage across all images.
+2. Open your browser and navigate to `http://localhost:8501`
 
-### Reference Image Analysis
-Upload reference images to guide the AI in generating similar styles or incorporating specific elements from your existing brand assets.
+3. Use the sidebar to navigate between different pages:
+   - Content Generator
+   - Image Creator
+   - Client Information
+   - Data Analytics
 
-## 🤝 Contributing
+## API Keys
+
+This application requires API keys for the following services:
+
+- **Google Gemini API**: Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **Ideogram API**: Get your API key from [Ideogram](https://ideogram.ai/api)
+
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgements
-
-- [Streamlit](https://streamlit.io/) for the amazing web app framework
-- [Gemini AI](https://ai.google.dev/) for the powerful content generation capabilities
-- [Ideogram](https://ideogram.ai/) for the image generation API 
+This project is licensed under the MIT License - see the LICENSE file for details. 
