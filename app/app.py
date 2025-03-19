@@ -1648,7 +1648,7 @@ def image_creator_page():
             )
             
             # Visual style preferences - similar approach with predefined options
-            st.markdown("### Visual Style")
+            st.markdown("### Visual Style (Optional)")
             
             visual_style_options = [
                 "Select a visual style",

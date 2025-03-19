@@ -810,6 +810,20 @@ def client_information_page():
                                         mime="application/json",
                                         use_container_width=True
                                     )
+                                    
+                                    # Display a completion message with next steps guidance
+                                    st.markdown("""
+                                    <div style="background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; margin-top: 20px; border-radius: 5px;">
+                                        <h4 style="margin-top: 0;">✅ Business Context Analysis Complete!</h4>
+                                        <p>The audience analysis data is now ready to enhance your image generation. Here's what you can do next:</p>
+                                        <ul>
+                                            <li><strong>Go to the Image Creator tab</strong> to generate images based on this business analysis</li>
+                                            <li><strong>Save this analysis</strong> using the button above to reference it later</li>
+                                            <li><strong>Download as JSON</strong> if you need to use this data elsewhere</li>
+                                        </ul>
+                                        <p style="margin-bottom: 0;"><strong>Tip:</strong> This analysis will improve the relevance of your generated images by targeting the right audience demographics and needs.</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
                                 else:
                                     st.error("Could not initialize Gemini client. Please check your API key.")
                                     
@@ -906,6 +920,20 @@ def client_information_page():
                             mime="application/json",
                             use_container_width=True
                         )
+                        
+                        # Display a completion message with next steps guidance for previously generated insights
+                        st.markdown("""
+                        <div style="background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; margin-top: 20px; border-radius: 5px;">
+                            <h4 style="margin-top: 0;">✅ Business Context Analysis Loaded!</h4>
+                            <p>The audience analysis data is ready to enhance your image generation. Here's what you can do next:</p>
+                            <ul>
+                                <li><strong>Go to the Image Creator tab</strong> to generate images based on this business analysis</li>
+                                <li><strong>Save this analysis</strong> using the button above to reference it later</li>
+                                <li><strong>Download as JSON</strong> if you need to use this data elsewhere</li>
+                            </ul>
+                            <p style="margin-bottom: 0;"><strong>Tip:</strong> This analysis will improve the relevance of your generated images by targeting the right audience demographics and needs.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                 else:
                     st.warning("No social media data found for the selected business.")
             else:
