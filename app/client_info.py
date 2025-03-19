@@ -427,12 +427,31 @@ def client_information_page():
                         selected_insight = saved_insights[selected_insight_index]
                         
                         # Display the summary
-                        st.markdown(f"""
-                        <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                            <h4 style="margin-top: 0;">Summary</h4>
-                            <p>{selected_insight['insight_data']['summary']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        summary_text = selected_insight['insight_data']['summary']
+                        summary_parts = summary_text.split("\n\n")
+                        
+                        if len(summary_parts) >= 2:
+                            # If summary is properly formatted in paragraphs
+                            business_description = summary_parts[0]
+                            audience_info = summary_parts[1]
+                            
+                            st.markdown(f"""
+                            <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                                <h4 style="margin-top: 0;">Business Summary</h4>
+                                <h5 style="color: #1e3a8a; margin-top: 10px;">🏢 Business Description</h5>
+                                <p style="font-weight: 500;">{business_description}</p>
+                                <h5 style="color: #1e3a8a; margin-top: 15px;">👥 Target Audience</h5>
+                                <p>{audience_info}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            # Fallback if not in paragraphs
+                            st.markdown(f"""
+                            <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                                <h4 style="margin-top: 0;">Summary</h4>
+                                <p>{summary_text}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                         
                         # Display each question and answer
                         st.subheader("Detailed Analysis")
@@ -515,12 +534,15 @@ def client_information_page():
                             3. If there isn't enough information to answer a question confidently, acknowledge the limitations and provide the best analysis based ONLY on what's available.
                             4. Be specific about what you can observe from the data and avoid speculative claims.
                             5. When discussing demographics or psychographics, only mention patterns that are clearly indicated in the content or engagement metrics.
-                            6. In the summary, FIRST describe the business (what they do, services, etc.) before discussing the target audience.
+                            6. In the summary, your HIGHEST PRIORITY should be thoroughly describing the business itself - what they do, their services, products, style, mood, tone, and brand identity. This business description must come first and be comprehensive.
+                            7. Only after providing a detailed business description should you then discuss the target audience information.
                             
                             Format your response as a JSON object with an array of question-answer pairs (including question_id) and a summary.
                             The summary should be structured in two clear paragraphs:
-                            1. First paragraph: Describe what Convert Cake does as a business, their services, and key offerings
-                            2. Second paragraph: Describe the target audience and how Convert Cake addresses their needs
+                            1. First paragraph: Describe what the business does as a company, including detailed information about their products, services, key offerings, brand style, mood, tone, and unique value proposition.
+                            2. Second paragraph: Describe the target audience and how the business addresses their needs.
+                            
+                            CRITICAL: The business description in the first paragraph MUST be comprehensive and should be given priority. Include specific details about their products, services, brand identity, and overall business focus before moving on to audience information.
                             
                             Be specific and provide actionable insights, but only based on the actual data provided.
                             """
@@ -577,12 +599,31 @@ def client_information_page():
                                     st.info("The AI has analyzed your social media data and generated the following insights. You can edit any answer by clicking the edit button.")
                                     
                                     # Display summary with edit option
-                                    st.markdown(f"""
-                                    <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                                        <h4 style="margin-top: 0;">Summary</h4>
-                                        <p>{business_context_analysis_json['summary']}</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    summary_text = business_context_analysis_json['summary']
+                                    summary_parts = summary_text.split("\n\n")
+                                    
+                                    if len(summary_parts) >= 2:
+                                        # If summary is properly formatted in paragraphs
+                                        business_description = summary_parts[0]
+                                        audience_info = summary_parts[1]
+                                        
+                                        st.markdown(f"""
+                                        <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                                            <h4 style="margin-top: 0;">Business Summary</h4>
+                                            <h5 style="color: #1e3a8a; margin-top: 10px;">🏢 Business Description</h5>
+                                            <p style="font-weight: 500;">{business_description}</p>
+                                            <h5 style="color: #1e3a8a; margin-top: 15px;">👥 Target Audience</h5>
+                                            <p>{audience_info}</p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                    else:
+                                        # Fallback if not in paragraphs
+                                        st.markdown(f"""
+                                        <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                                            <h4 style="margin-top: 0;">Summary</h4>
+                                            <p>{summary_text}</p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
                                     
                                     if st.button("✏️ Edit Summary"):
                                         st.session_state.editing_summary = True
@@ -652,12 +693,31 @@ def client_information_page():
                         insights_to_display = st.session_state.edited_insights if 'edited_insights' in st.session_state else st.session_state.business_context_analysis_json
                         
                         # Display summary with edit option
-                        st.markdown(f"""
-                        <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                            <h4 style="margin-top: 0;">Summary</h4>
-                            <p>{insights_to_display['summary']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        summary_text = insights_to_display['summary']
+                        summary_parts = summary_text.split("\n\n")
+                        
+                        if len(summary_parts) >= 2:
+                            # If summary is properly formatted in paragraphs
+                            business_description = summary_parts[0]
+                            audience_info = summary_parts[1]
+                            
+                            st.markdown(f"""
+                            <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                                <h4 style="margin-top: 0;">Business Summary</h4>
+                                <h5 style="color: #1e3a8a; margin-top: 10px;">🏢 Business Description</h5>
+                                <p style="font-weight: 500;">{business_description}</p>
+                                <h5 style="color: #1e3a8a; margin-top: 15px;">👥 Target Audience</h5>
+                                <p>{audience_info}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            # Fallback if not in paragraphs
+                            st.markdown(f"""
+                            <div style="background-color: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                                <h4 style="margin-top: 0;">Summary</h4>
+                                <p>{summary_text}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                         
                         if st.button("✏️ Edit Summary", key="edit_summary_previous"):
                             st.session_state.editing_summary = True

@@ -16,6 +16,7 @@ import uuid
 from datetime import date
 import io
 import re
+from google.genai import types
 
 # Suppress SQLAlchemy warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -815,9 +816,29 @@ def content_generator_page():
                     
                     for i, prompt in enumerate(variation_prompts):
                         with st.spinner(f"Generating variation {i+1}..."):
+                            # Define a JSON schema for the response
+                            response_schema = {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "STRING"
+                                }
+                            }
+                            
+                            # Configure generation parameters
+                            generation_config = types.GenerateContentConfig(
+                                temperature=0.7,
+                                top_p=0.95,
+                                top_k=40,
+                                max_output_tokens=8192,
+                                response_schema=response_schema,
+                                response_mime_type="application/json"
+                            )
+                            
+                            # Generate the content
                             response = client.models.generate_content(
                                 model="gemini-2.0-flash",
-                                contents=prompt
+                                contents=prompt,
+                                config=generation_config
                             )
                             
                             # Store generated content
@@ -1336,7 +1357,23 @@ def image_creator_page():
                         # Add a preview section for Business Context Analysis
                         with st.expander("👥 Preview Business Context Analysis", expanded=False):
                             st.markdown("### Business Context Summary")
-                            st.markdown(f"**{business_context_summary}**")
+                            
+                            # Split the summary into two parts (business description and audience info)
+                            if business_context_summary:
+                                summary_parts = business_context_summary.split("\n\n")
+                                if len(summary_parts) >= 2:
+                                    # Display business description with emphasis
+                                    st.markdown("#### 🏢 Business Description")
+                                    st.markdown(f"**{summary_parts[0]}**")
+                                    
+                                    # Display audience info
+                                    st.markdown("#### 👥 Target Audience")
+                                    st.markdown(f"{summary_parts[1]}")
+                                else:
+                                    # If not properly split, display the whole summary
+                                    st.markdown(f"**{business_context_summary}**")
+                            else:
+                                st.markdown("No summary available")
                             
                             if 'business_context_analysis' in business_context_data:
                                 st.markdown("### Key Audience Insights")
@@ -2524,16 +2561,41 @@ def image_creator_page():
                             
                             # Add the final formatting instructions
                             prompt += """
-                            Format your response as a JSON array with 4 detailed prompts, like this:
-                            ["Prompt 1", "Prompt 2", "Prompt 3", "Prompt 4"]
+                            Format your response as a SIMPLE JSON array with 4 detailed prompts:
+                            ["Prompt for Panel 1", "Prompt for Panel 2", "Prompt for Panel 3", "Prompt for Panel 4"]
                             
-                            Do not include any explanations or additional text - ONLY return the JSON array.
+                            CRITICAL: DO NOT wrap the array in a JSON object with a "storyboard_panels" key.
+                            Return ONLY the JSON array with 4 strings, nothing else.
+                            Do not include any explanations, additional text, or markdown formatting before or after the array.
+                            Each string in the array should be a complete, detailed prompt for that panel's image generation.
                             """
 
                             # Call Gemini API
+                            from google.genai import types
+                            
+                            # Define a schema for structured output
+                            response_schema = {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "STRING"
+                                }
+                            }
+                            
+                            # Configure the model
+                            generation_config = types.GenerateContentConfig(
+                                temperature=0.7,
+                                top_p=0.95,
+                                top_k=40,
+                                max_output_tokens=8192,
+                                response_mime_type="application/json",
+                                response_schema=response_schema
+                            )
+                            
+                            # Generate the storyboard prompts with structured output
                             response = client.models.generate_content(
                                 model="gemini-2.0-flash",
-                                contents=prompt
+                                contents=prompt,
+                                config=generation_config
                             )
                             
                             # Parse the response to extract the 4 prompts
@@ -2544,13 +2606,24 @@ def image_creator_page():
                                 
                                 # Clean the response text to extract just the JSON array
                                 response_text = response.text.strip()
-                                # Find anything that looks like a JSON array
+                                
+                                # Debug the raw response
+                                st.session_state.debug_response = response_text
+                                
+                                # First, try to extract a proper JSON array
                                 json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
                                 
                                 if json_match:
                                     json_str = json_match.group(0)
                                     try:
+                                        # Try to parse as a simple array of strings
                                         storyboard_prompts = json.loads(json_str)
+                                        
+                                        # Verify that we got an array of 4 elements
+                                        if isinstance(storyboard_prompts, list) and len(storyboard_prompts) >= 4:
+                                            storyboard_prompts = storyboard_prompts[:4]
+                                        else:
+                                            raise ValueError("Expected an array of at least 4 prompts")
                                     except json.JSONDecodeError as e:
                                         # Try to fix common JSON formatting issues
                                         # Replace single quotes with double quotes
@@ -2559,6 +2632,10 @@ def image_creator_page():
                                         json_str = re.sub(r'(?<!\\)"(?=(.*?".*?"))', r'\"', json_str)
                                         try:
                                             storyboard_prompts = json.loads(json_str)
+                                            if isinstance(storyboard_prompts, list) and len(storyboard_prompts) >= 4:
+                                                storyboard_prompts = storyboard_prompts[:4]
+                                            else:
+                                                raise ValueError("Expected an array of at least 4 prompts")
                                         except json.JSONDecodeError:
                                             # If still failing, try a more aggressive approach
                                             # Split by commas and manually construct an array
@@ -2567,10 +2644,52 @@ def image_creator_page():
                                                 storyboard_prompts = parts[:4]
                                             else:
                                                 raise ValueError("Could not parse the response into 4 prompts")
+                                # Check if it might be a JSON object with a storyboard_panels key
+                                elif '"storyboard_panels"' in response_text or "'storyboard_panels'" in response_text:
+                                    try:
+                                        # Try to parse as JSON object
+                                        response_json = json.loads(response_text)
+                                        if "storyboard_panels" in response_json and isinstance(response_json["storyboard_panels"], list):
+                                            storyboard_prompts = response_json["storyboard_panels"]
+                                            if len(storyboard_prompts) >= 4:
+                                                storyboard_prompts = storyboard_prompts[:4]
+                                            else:
+                                                raise ValueError("Not enough prompts in storyboard_panels array")
+                                        else:
+                                            raise ValueError("storyboard_panels key not found or not an array")
+                                    except json.JSONDecodeError:
+                                        # Fix JSON formatting
+                                        fixed_text = response_text.replace("'", '"')
+                                        try:
+                                            response_json = json.loads(fixed_text)
+                                            if "storyboard_panels" in response_json and isinstance(response_json["storyboard_panels"], list):
+                                                storyboard_prompts = response_json["storyboard_panels"]
+                                                if len(storyboard_prompts) >= 4:
+                                                    storyboard_prompts = storyboard_prompts[:4]
+                                                else:
+                                                    raise ValueError("Not enough prompts in storyboard_panels array")
+                                            else:
+                                                raise ValueError("storyboard_panels key not found or not an array")
+                                        except:
+                                            # Last resort: look for array pattern inside storyboard_panels
+                                            panel_match = re.search(r'"storyboard_panels"\s*:\s*\[(.*?)\]', fixed_text, re.DOTALL)
+                                            if panel_match:
+                                                panel_content = panel_match.group(1)
+                                                parts = re.findall(r'"([^"]*)"', panel_content)
+                                                if len(parts) >= 4:
+                                                    storyboard_prompts = parts[:4]
+                                                else:
+                                                    raise ValueError("Not enough prompts found in storyboard_panels content")
+                                            else:
+                                                raise ValueError("Could not extract storyboard_panels content")
                                 else:
                                     # Fallback: try to parse the entire response as JSON
                                     try:
                                         storyboard_prompts = json.loads(response_text)
+                                        if isinstance(storyboard_prompts, list) and len(storyboard_prompts) >= 4:
+                                            storyboard_prompts = storyboard_prompts[:4]
+                                        else:
+                                            raise ValueError("Expected an array of at least 4 prompts")
                                     except json.JSONDecodeError:
                                         # Last resort: split by newlines and take 4 non-empty lines
                                         lines = [line.strip() for line in response_text.split('\n') if line.strip()]
@@ -2597,6 +2716,20 @@ def image_creator_page():
                                                 storyboard_prompts[i] = json.dumps(storyboard_prompts[i])
                                             except:
                                                 storyboard_prompts[i] = str(storyboard_prompts[i])
+                                
+                                # Fix the "storyboard_panels" issue sometimes seen in Panel 1
+                                if "storyboard_panels" in storyboard_prompts[0] and len(storyboard_prompts) >= 2:
+                                    # If panel 1 has this issue but panels 2+ look ok, create a new panel 1 from the concept
+                                    st.warning("Fixing formatting issue in Panel 1...")
+                                    storyboard_prompts[0] = f"Professional marketing image for '{storyboard_concept[:50]}...' with cohesive style matching the other panels. Includes clear text elements, consistent color palette, and professional composition."
+                                
+                                # Add debug expander - can be commented out in production
+                                with st.expander("Debug Information (for developers)", expanded=False):
+                                    st.markdown("### Raw Response from Gemini")
+                                    st.code(response_text)
+                                    st.markdown("### Processed Prompts")
+                                    for i, prompt in enumerate(storyboard_prompts):
+                                        st.markdown(f"**Panel {i+1}:** {prompt[:100]}...")
                                 
                                 # Display the 4 prompts
                                 st.subheader("Generated Storyboard Prompts")
