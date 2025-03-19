@@ -200,18 +200,47 @@ def client_information_page():
                 if 'business_name' in businesses_df.columns:
                     # If we have business names, use them for display
                     business_options = businesses_df.set_index('business_id')['business_name'].to_dict()
+                    
+                    # Store the current selected business in session state for comparison
+                    if 'previous_selected_business' not in st.session_state:
+                        st.session_state.previous_selected_business = None
+                    
                     selected_business = st.selectbox(
                         "Select a business to analyze:",
                         options=list(business_options.keys()),
                         format_func=lambda x: business_options.get(x, x),
-                        index=0
+                        index=0,
+                        key="business_selector"
                     )
+                    
+                    # Check if business selection has changed
+                    if st.session_state.previous_selected_business is not None and st.session_state.previous_selected_business != selected_business:
+                        # Clear analysis-related session state variables when business changes
+                        keys_to_clear = [
+                            'business_context_analysis_json', 
+                            'edited_insights',
+                            'viewing_saved_insights',
+                            'selected_insight_id',
+                            'excluded_questions',
+                            'editing_answer'
+                        ]
+                        for key in keys_to_clear:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        
+                        # Update the previous selected business
+                        st.session_state.previous_selected_business = selected_business
+                        st.rerun()
+                    
+                    # Update the previous selected business
+                    st.session_state.previous_selected_business = selected_business
                 else:
                     # Fallback to just showing business IDs
                     selected_business = st.selectbox(
                         "Select a business to analyze:",
                         businesses_df['business_id'].tolist(),
-                        index=0
+                        index=0,
+                        key="business_selector"
                     )
                 
                 # Get social media data for the selected business
@@ -297,6 +326,12 @@ def client_information_page():
                     if st.session_state.show_add_question:
                         with st.container():
                             new_question = st.text_area("Enter your custom question:", placeholder="e.g., What social media platforms are most effective for reaching this audience?")
+                            
+                            # Show which category the question will be added to
+                            if new_question:
+                                category = find_topic_for_question(new_question)
+                                st.info(f"This question will be added to the '{category}' category.")
+                            
                             if st.button("Submit Question"):
                                 if new_question:
                                     success, message, question_id = qa_manager.add_question(
@@ -304,10 +339,15 @@ def client_information_page():
                                         is_default=False
                                     )
                                     if success:
-                                        st.success("Question added successfully!")
+                                        st.success(f"Question added successfully to the '{category}' category!")
+                                        # Force expander for this category to be open on refresh
+                                        category_key = f"expander_{category.replace(' ', '_').lower()}"
+                                        st.session_state[category_key] = True
                                         st.rerun()
                                     else:
                                         st.error(f"Failed to add question: {message}")
+                                else:
+                                    st.warning("Please enter a question before submitting.")
                     
                     # Get answers for this business
                     answers_df = qa_manager.get_answers_for_business(selected_business)
@@ -317,60 +357,139 @@ def client_information_page():
                     if not answers_df.empty:
                         answers_dict = answers_df.set_index('question_id')['answer_text'].to_dict()
                     
-                    # Create a grid layout for questions with edit/delete options in the same row
-                    
                     # Initialize excluded questions in session state if not already there
                     if 'excluded_questions' not in st.session_state:
                         st.session_state.excluded_questions = set()
                     
+                    # Group questions by topic
+                    # Define topic groups
+                    topic_groups = {
+                        "Demographics and Background": [
+                            "What is likely their age range, life stage, and family status?",
+                            "Would income level matter for this product or service?",
+                            "Do they have a specific occupation and would it influence their purchasing behavior?"
+                        ],
+                        "Values and Lifestyle": [
+                            "What are their personal values, life priorities, or causes they care about?",
+                            "What is their lifestyle like, and how does it shape their needs?",
+                            "What deeply held beliefs drive their decisions?"
+                        ],
+                        "Needs and Challenges": [
+                            "What specific problems, frustrations, or unmet needs are they experiencing?",
+                            "What struggles do they face that your product/service might solve?",
+                            "How else might they solve the same problem your product addresses?"
+                        ],
+                        "Goals and Influences": [
+                            "Who are the Key Opinion Leaders or influencers they are likely to respect and follow?",
+                            "What do they hope to achieve?",
+                            "What complementary fields or interests overlap with this niche?"
+                        ],
+                        "Market Trends": [
+                            "Is there an evolving trend that's rapidly changing the niche landscape?",
+                            "Are purchases triggered by life stages or seasonal events?"
+                        ]
+                    }
+                    
+                    # Function to find the topic for a question
+                    def find_topic_for_question(question_text):
+                        for topic, questions in topic_groups.items():
+                            if any(q.lower() in question_text.lower() or question_text.lower() in q.lower() for q in questions):
+                                return topic
+                        return "Other Questions"
+                    
+                    # Group questions by topic
+                    questions_by_topic = {}
+                    # Initialize "Other Questions" category to ensure it exists even if empty
+                    questions_by_topic["Other Questions"] = []
+                    
                     for _, row in st.session_state.questions_df.iterrows():
                         question_id = row['question_id']
                         question_text = row['question_text']
+                        topic = find_topic_for_question(question_text)
                         
-                        # Check if this question is excluded
-                        is_excluded = question_id in st.session_state.excluded_questions
+                        if topic not in questions_by_topic:
+                            questions_by_topic[topic] = []
                         
-                        # Create columns for the expander and skip button
-                        col1, col2 = st.columns([5, 1])
+                        questions_by_topic[topic].append({
+                            'question_id': question_id,
+                            'question_text': question_text
+                        })
+                    
+                    # Display questions grouped by topic (all collapsed by default)
+                    for topic, questions in questions_by_topic.items():
+                        # Skip empty categories
+                        if not questions:
+                            continue
+                            
+                        # Create a unique key for this topic's expander
+                        topic_key = f"expander_{topic.replace(' ', '_').lower()}"
                         
-                        with col1:
-                            # Create an expander for each question
-                            with st.expander(question_text):
-                                # Add visual indicator if question is excluded
-                                if is_excluded:
-                                    st.markdown("""
-                                    <p style="color: #888888; font-style: italic; font-size: 0.8em;">
-                                        This question will be skipped during analysis
-                                    </p>
-                                    """, unsafe_allow_html=True)
+                        # Initialize the expander state in session state if it doesn't exist
+                        if topic_key not in st.session_state:
+                            st.session_state[topic_key] = False  # Default to collapsed
+                        
+                        # Set expanded=False to hide by default, unless programmatically set to True
+                        with st.expander(f"📋 {topic}", expanded=st.session_state[topic_key]):
+                            # Reset the state after rendering if it was temporarily set to True
+                            if st.session_state[topic_key] == True:
+                                st.session_state[topic_key] = False
                                 
-                                # If there's an answer for this question, display it
-                                if question_id in answers_dict:
-                                    st.markdown("### Answer:")
-                                    st.markdown(answers_dict[question_id])
-                                else:
-                                    st.markdown("*No answer available yet.*")
-                        
-                        with col2:
-                            # Create a container for buttons
-                            button_container = st.container()
-                            
-                            # Toggle button text based on current state
-                            skip_text = "✓ Include" if is_excluded else "⏭️ Skip"
-                            skip_key = f"include_{question_id}" if is_excluded else f"skip_{question_id}"
-                            
-                            # Skip/Include button with different styling based on state
-                            button_type = "primary" if not is_excluded else "secondary"
-                            
-                            # Skip/Include button
-                            if button_container.button(skip_text, key=skip_key, type=button_type):
-                                if is_excluded:
-                                    # Remove from excluded list
-                                    st.session_state.excluded_questions.remove(question_id)
-                                else:
-                                    # Add to excluded list
-                                    st.session_state.excluded_questions.add(question_id)
-                                st.rerun()
+                            for question in questions:
+                                question_id = question['question_id']
+                                question_text = question['question_text']
+                                
+                                # Check if this question is excluded
+                                is_excluded = question_id in st.session_state.excluded_questions
+                                
+                                # Create a container with custom styling for the question
+                                st.markdown(f"""
+                                <div style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
+                                    <strong style="font-size: 1.05rem;">{question_text}</strong>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Create columns for the question content and skip button
+                                col1, col2 = st.columns([5, 1])
+                                
+                                with col1:
+                                    # Add visual indicator if question is excluded
+                                    if is_excluded:
+                                        st.markdown("""
+                                        <p style="color: #888888; font-style: italic; font-size: 0.8em; margin-top: -5px;">
+                                            This question will be skipped during analysis
+                                        </p>
+                                        """, unsafe_allow_html=True)
+                                    
+                                    # If there's an answer for this question, display it
+                                    if question_id in answers_dict:
+                                        st.markdown("### Answer:")
+                                        st.markdown(answers_dict[question_id])
+                                    else:
+                                        st.markdown("*No answer available yet.*")
+                                
+                                with col2:
+                                    # Create a container for buttons
+                                    button_container = st.container()
+                                    
+                                    # Toggle button text based on current state
+                                    skip_text = "✓ Include" if is_excluded else "⏭️ Skip"
+                                    skip_key = f"include_{question_id}" if is_excluded else f"skip_{question_id}"
+                                    
+                                    # Skip/Include button with different styling based on state
+                                    button_type = "primary" if not is_excluded else "secondary"
+                                    
+                                    # Skip/Include button
+                                    if button_container.button(skip_text, key=skip_key, type=button_type):
+                                        if is_excluded:
+                                            # Remove from excluded list
+                                            st.session_state.excluded_questions.remove(question_id)
+                                        else:
+                                            # Add to excluded list
+                                            st.session_state.excluded_questions.add(question_id)
+                                        st.rerun()
+                                
+                                # Add a separator between questions
+                                st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
                     
                     # Edit answer modal
                     if 'editing_answer' in st.session_state:
@@ -466,13 +585,25 @@ def client_information_page():
                     # Button to generate insights
                     if st.button("🔍 Analyze Target Audience", use_container_width=True, type="primary"):
                         with st.spinner("Analyzing social media data to understand your target audience..."):
-                            # Prepare data for Gemini
-                            content_text = "\n".join(social_media_df['full_content'].tolist())
-                            hashtags = ", ".join([tag for tags in social_media_df['hashtags'].dropna() for tag in tags.split(',')])
-                            platforms = ", ".join(social_media_df['platform'].unique())
-                            content_types = ", ".join(social_media_df['content_type'].unique())
+                            # Prepare data for Gemini - handle None values
+                            # Replace None values with empty strings before joining
+                            social_media_df['full_content'] = social_media_df['full_content'].fillna("")
+                            content_text = "\n".join([str(text) for text in social_media_df['full_content'].tolist()])
                             
-                            # Calculate engagement metrics
+                            # Handle None values in hashtags
+                            social_media_df['hashtags'] = social_media_df['hashtags'].fillna("")
+                            hashtags = ", ".join([tag for tags in social_media_df['hashtags'] for tag in str(tags).split(',') if tag])
+                            
+                            # Handle None values in platform and content_type
+                            social_media_df['platform'] = social_media_df['platform'].fillna("")
+                            social_media_df['content_type'] = social_media_df['content_type'].fillna("")
+                            platforms = ", ".join([p for p in social_media_df['platform'].unique() if p])
+                            content_types = ", ".join([ct for ct in social_media_df['content_type'].unique() if ct])
+                            
+                            # Calculate engagement metrics - ensure numeric columns are treated as such
+                            social_media_df['likes_count'] = pd.to_numeric(social_media_df['likes_count'], errors='coerce').fillna(0)
+                            social_media_df['comments_count'] = pd.to_numeric(social_media_df['comments_count'], errors='coerce').fillna(0)
+                            social_media_df['shares_count'] = pd.to_numeric(social_media_df['shares_count'], errors='coerce').fillna(0)
                             avg_likes = social_media_df['likes_count'].mean()
                             avg_comments = social_media_df['comments_count'].mean()
                             avg_shares = social_media_df['shares_count'].mean()

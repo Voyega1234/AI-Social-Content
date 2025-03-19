@@ -16,6 +16,8 @@ import uuid
 from datetime import date
 import io
 import re
+from google.genai import types
+import math
 
 # Suppress SQLAlchemy warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -815,9 +817,29 @@ def content_generator_page():
                     
                     for i, prompt in enumerate(variation_prompts):
                         with st.spinner(f"Generating variation {i+1}..."):
+                            # Define a JSON schema for the response
+                            response_schema = {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "STRING"
+                                }
+                            }
+                            
+                            # Configure generation parameters
+                            generation_config = types.GenerateContentConfig(
+                                temperature=0.7,
+                                top_p=0.95,
+                                top_k=40,
+                                max_output_tokens=8192,
+                                response_schema=response_schema,
+                                response_mime_type="application/json"
+                            )
+                            
+                            # Generate the content
                             response = client.models.generate_content(
                                 model="gemini-2.0-flash",
-                                contents=prompt
+                                contents=prompt,
+                                config=generation_config
                             )
                             
                             # Store generated content
@@ -1336,7 +1358,23 @@ def image_creator_page():
                         # Add a preview section for Business Context Analysis
                         with st.expander("👥 Preview Business Context Analysis", expanded=False):
                             st.markdown("### Business Context Summary")
-                            st.markdown(f"**{business_context_summary}**")
+                            
+                            # Split the summary into two parts (business description and audience info)
+                            if business_context_summary:
+                                summary_parts = business_context_summary.split("\n\n")
+                                if len(summary_parts) >= 2:
+                                    # Display business description with emphasis
+                                    st.markdown("#### 🏢 Business Description")
+                                    st.markdown(f"**{summary_parts[0]}**")
+                                    
+                                    # Display audience info
+                                    st.markdown("#### 👥 Target Audience")
+                                    st.markdown(f"{summary_parts[1]}")
+                                else:
+                                    # If not properly split, display the whole summary
+                                    st.markdown(f"**{business_context_summary}**")
+                            else:
+                                st.markdown("No summary available")
                             
                             if 'business_context_analysis' in business_context_data:
                                 st.markdown("### Key Audience Insights")
@@ -1402,16 +1440,13 @@ def image_creator_page():
                 st.session_state.reference_images = []
                 st.session_state.reference_descriptions = []
             
-            # Create 5 file uploaders for reference images
-            uploaded_images = []
-            for i in range(5):
-                uploaded_file = st.file_uploader(
-                    f"Reference Image {i+1}",
-                    type=["jpg", "jpeg", "png"],
-                    key=f"ref_img_{i}"
-                )
-                if uploaded_file is not None:
-                    uploaded_images.append(uploaded_file)
+            # Single file uploader that accepts multiple files
+            uploaded_images = st.file_uploader(
+                "Upload reference images (you can select multiple files)",
+                type=["jpg", "jpeg", "png"],
+                accept_multiple_files=True,
+                key="ref_imgs_multiple"
+            )
             
             # Display uploaded images in a grid
             if uploaded_images:
@@ -1455,19 +1490,192 @@ def image_creator_page():
         
         with col2:
             # Image concept description
-            st.markdown("### Image Concept")
+            st.markdown("### Strategic Marketing Content Ideas")
+            
+            # Initialize session state for generated image ideas if not already there
+            if 'generated_image_ideas' not in st.session_state:
+                st.session_state.generated_image_ideas = []
+                
+            # Button to generate image ideas based on business context
+            business_context_data = None
+            business_context_summary = None
+            
+            # Only show generate ideas button if a business is selected
+            if selected_business:
+                # Try to get business context analysis data
+                try:
+                    # Import the function from client_info
+                    from client_info import get_saved_insights
+                    
+                    # Get saved insights for the selected business
+                    saved_insights = get_saved_insights(selected_business)
+                    
+                    # Check if there are any insights available
+                    if saved_insights and len(saved_insights) > 0:
+                        # Use the most recent insight
+                        latest_insight = saved_insights[0]
+                        business_context_data = latest_insight['insight_data']
+                        
+                        # Extract summary
+                        if 'summary' in business_context_data:
+                            business_context_summary = business_context_data['summary']
+                            
+                        # Show a message about available business context
+                        st.info("Business context analysis data is available! Click 'Generate Strategic Ideas' to create AI-powered marketing recommendations.")
+                    else:
+                        st.warning("No business context analysis data available. Ideas will be more generic.")
+                except Exception as e:
+                    st.warning(f"Could not load business context analysis: {str(e)}")
+            
+            # Button to generate image ideas
+            if st.button("🎯 Generate Strategic Ideas", use_container_width=True):
+                with st.spinner("Generating strategic marketing ideas..."):
+                    # Get Gemini client
+                    client = get_gemini_client()
+                    if not client:
+                        st.error("Could not initialize Gemini client. Please check your API key.")
+                    else:
+                        try:
+                            # Import types from google.genai to ensure it's in the local scope
+                            from google.genai import types
+                            
+                            # Create prompt based on available business context
+                            if business_context_summary:
+                                prompt = f"""
+                                You are a professional social media marketing strategist.
+                                
+                                BUSINESS CONTEXT:
+                                {business_context_summary}
+                                
+                                Based on this business context analysis, create EXACTLY 5 strategic marketing content ideas for this business.
+                                For each idea:
+                                1. Suggest SPECIFIC products or services that should be featured in advertising
+                                2. Recommend a content approach that will likely succeed with their target audience
+                                3. Explain WHY this approach will resonate based on the business context
+                                
+                                Each idea should be practical and actionable marketing advice, not just descriptive image concepts.
+                                Format each idea as a DESCRIPTIVE TITLE followed by 2-3 sentences of specific marketing strategy.
+                                
+                                Examples of good ideas:
+                                - Eco-friendly Product Showcase: Feature your bamboo toothbrush collection in educational content explaining environmental impact. This will appeal to your environmentally conscious audience who values sustainability.
+                                - User Testimonial Campaign: Create a series highlighting customer success stories with your weight loss program. Your audience is motivated by social proof and relatable transformation stories.
+                                
+                                DO NOT number the ideas or use bullet points.
+                                Make each idea unique, strategic, and tailored to this specific business and its audience.
+                                """
+                            else:
+                                # More generic prompt if no business context
+                                prompt = """
+                                You are a professional social media marketing strategist.
+                                
+                                Create EXACTLY 5 strategic marketing content ideas that would work well for social media advertising.
+                                For each idea:
+                                1. Suggest what types of products or services should be featured
+                                2. Recommend a content approach that will likely succeed with audiences
+                                3. Explain WHY this approach will resonate with target customers
+                                
+                                Each idea should be practical and actionable marketing advice, not just descriptive image concepts.
+                                Format each idea as a DESCRIPTIVE TITLE followed by 2-3 sentences of specific marketing strategy.
+                                
+                                Examples of good ideas:
+                                - Behind-the-Scenes Content: Show how your products are made to build transparency and brand trust. This humanizes your brand and satisfies customer curiosity about your processes.
+                                - Limited-Time Offers: Create urgency with flash sales promoted through carousel posts. This leverages scarcity psychology and drives immediate conversions.
+                                
+                                DO NOT number the ideas or use bullet points.
+                                Make each idea unique and strategic.
+                                """
+                            
+                            # Generate content
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=[prompt],
+                                config=types.GenerateContentConfig(
+                                    temperature=0.9,
+                                    top_p=0.95,
+                                    top_k=40,
+                                    max_output_tokens=1024
+                                )
+                            )
+                            
+                            # Process the response
+                            generated_text = response.text.strip()
+                            
+                            # Split the response into individual ideas (assuming they're separated by newlines)
+                            raw_ideas = [idea.strip() for idea in generated_text.split('\n\n') if idea.strip()]
+                            
+                            # Store only the first 5 ideas (or fewer if less were generated)
+                            st.session_state.generated_image_ideas = raw_ideas[:5]
+                            
+                            # Success message
+                            st.success(f"Successfully generated {len(st.session_state.generated_image_ideas)} image ideas!")
+                            
+                        except Exception as e:
+                            st.error(f"Error generating image ideas: {str(e)}")
+            
+            # Display generated ideas with select buttons
+            if st.session_state.generated_image_ideas:
+                st.markdown("### Select a Strategic Marketing Idea:")
+                for i, idea in enumerate(st.session_state.generated_image_ideas):
+                    with st.container():
+                        # Create a card-like container for each idea
+                        st.markdown(f"""
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e0e0e0;">
+                            <p style="margin: 0; font-family: sans-serif; white-space: pre-wrap;">{idea}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Add a button to select this idea
+                        if st.button(f"Use This Strategy", key=f"select_idea_{i}"):
+                            # Store the selected idea in session state
+                            st.session_state.selected_image_idea = idea
+                            # Rerun to update the UI
+                            st.rerun()
+            
+            # Option for custom input
+            st.markdown("### Or Create Your Own Marketing Concept:")
+            
+            # If a generated idea was selected, use it as the default value
+            default_concept = ""
+            if 'selected_image_idea' in st.session_state:
+                default_concept = st.session_state.selected_image_idea
+                
+            # Text area for custom input
             image_concept = st.text_area(
-                "Describe your image idea",
-                placeholder="e.g., 'A minimalist product shot of our coffee mug with morning sunlight', or 'A lifestyle image showing our skincare routine in action'",
-                help="Be as specific as possible about what you want to see in the image."
+                "Describe your marketing concept",
+                value=default_concept,
+                placeholder="Describe which products to feature and what kind of content approach would be most effective for your target audience.",
+                help="Be specific about what products/services to showcase and why this approach will resonate with your audience."
             )
             
-            # Visual style preferences
-            visual_style = st.text_area(
-                "Visual Style Preferences (Optional)",
-                placeholder="e.g., 'Bright and airy with pastel colors', 'Dark and moody with high contrast', or 'Minimalist with lots of white space'",
-                help="Describe the visual style, colors, lighting, and mood you want for your image."
+            # Visual style preferences - similar approach with predefined options
+            st.markdown("### Visual Style")
+            
+            visual_style_options = [
+                "Select a visual style",
+                "Bright and airy with pastel colors",
+                "Dark and moody with high contrast",
+                "Minimalist with lots of white space",
+                "Vibrant and colorful with bold elements",
+                "Vintage/retro aesthetic with film-like quality",
+                "Custom style (write your own)"
+            ]
+            
+            selected_style_option = st.selectbox(
+                "Choose a visual style or create your own",
+                visual_style_options,
+                index=0
             )
+            
+            # Show text input field only if custom option is selected
+            if selected_style_option == "Custom style (write your own)":
+                visual_style = st.text_area(
+                    "Describe your custom visual style",
+                    placeholder="e.g., 'Bright and airy with pastel colors', 'Dark and moody with high contrast', or 'Minimalist with lots of white space'",
+                    help="Describe the visual style, colors, lighting, and mood you want for your image."
+                )
+            else:
+                # Use the selected option as the visual style
+                visual_style = selected_style_option if selected_style_option != "Select a visual style" else ""
             
             # Display reference image description if available
             if 'reference_image_description' in st.session_state:
@@ -1486,8 +1694,8 @@ def image_creator_page():
                     st.warning("Please select or enter a Business.")
                     return
                 
-                if not image_concept:
-                    st.warning("Please describe your image concept.")
+                if not image_concept or image_concept == "Select an image idea":
+                    st.warning("Please select or describe an image concept.")
                     return
                 
                 client = get_gemini_client()
@@ -1561,7 +1769,7 @@ def image_creator_page():
                         
                         # Simplified prompt that only generates the content brief sections
                         prompt = f"""
-                        Create a content brief for a professional business image to be used on {platform} for {selected_business_name}.
+                        Create a content brief for a PROFESSIONAL, HIGH-QUALITY advertising image to be used on {platform} for {selected_business_name}.
                         
                         Purpose: {image_purpose}
                         
@@ -1575,13 +1783,28 @@ def image_creator_page():
                         
                         {business_context_description}
                         
-                        Please ONLY include the following sections in your response:
+                        CRITICAL IMAGE QUALITY REQUIREMENTS:
+                        1. The image MUST include professional-quality English advertising text/copy that is relevant to the product/service
+                        2. Text must be clearly readable and properly integrated into the design (not floating or awkwardly placed)
+                        3. Use high-contrast text placement to ensure readability
+                        4. Incorporate realistic product mockups when featuring products
+                        5. Text should be concise marketing copy with a clear call-to-action when appropriate
+                        6. Overall image must have professional-grade lighting, composition, and production value
+                        7. Include proper logo placement and branding elements where appropriate
                         
-                        1. Creative Ideation: Overall concept and creative direction
-                        2. Content Pillars: Key themes and messages to convey
-                        3. Mood and Tone: Emotional response and atmosphere
+                        Your response should be structured as a detailed image prompt in these sections:
                         
-                        Make it specific, detailed, professional, and aligned with the brand's identity.
+                        SUBJECT: [Clear description of main subject/focus]
+                        
+                        SCENE: [Detailed scene description including environment, background, props]
+                        
+                        TEXT ELEMENTS: [Specific advertising text/copy to include, with placement details]
+                        
+                        STYLE: [Specific visual style, lighting, mood, and atmosphere]
+                        
+                        COMPOSITION: [Camera angle, framing, focal point, depth of field]
+                        
+                        TECHNICAL SPECIFICATIONS: [Image quality, rendering style, photography style/reference]
                         """
                         
                         # Call Gemini API
@@ -1596,44 +1819,8 @@ def image_creator_page():
                         # Display the content brief
                         st.subheader("Generated Content Brief")
                         
-                        # Display in tabs
-                        tabs = st.tabs(["Complete Brief", "Creative Ideation", "Content Pillars", "Mood and Tone"])
-                        
-                        with tabs[0]:
-                            st.markdown(response.text)
-                            
-                        with tabs[1]:
-                            import re  # Ensure re module is available in this scope
-                            # Extract Creative Ideation section
-                            creative_match = re.search(r"(?:\d+\.\s*)?Creative Ideation:(.*?)(?=(?:\n\n\d+\.\s*Content Pillars:)|(?:\n\nContent Pillars:))", response.text, re.DOTALL)
-                            if creative_match:
-                                creative_section = creative_match.group(1).strip()
-                                st.markdown("### Creative Ideation")
-                                st.markdown(creative_section)
-                            else:
-                                st.info("Creative Ideation section not found in the generated content.")
-                        
-                        with tabs[2]:
-                            import re  # Ensure re module is available in this scope
-                            # Extract Content Pillars section
-                            content_match = re.search(r"(?:\d+\.\s*)?Content Pillars:(.*?)(?=(?:\n\n\d+\.\s*Mood and Tone:)|(?:\n\nMood and Tone:))", response.text, re.DOTALL)
-                            if content_match:
-                                content_section = content_match.group(1).strip()
-                                st.markdown("### Content Pillars")
-                                st.markdown(content_section)
-                            else:
-                                st.info("Content Pillars section not found in the generated content.")
-                        
-                        with tabs[3]:
-                            import re  # Ensure re module is available in this scope
-                            # Extract Mood and Tone section
-                            mood_match = re.search(r"(?:\d+\.\s*)?Mood and Tone:(.*?)(?=$)", response.text, re.DOTALL)
-                            if mood_match:
-                                mood_section = mood_match.group(1).strip()
-                                st.markdown("### Mood and Tone")
-                                st.markdown(mood_section)
-                            else:
-                                st.info("Mood and Tone section not found in the generated content.")
+                        # Display full content brief (removed tabs, keeping only the complete brief view)
+                        st.markdown(response.text)
                         
                         # Set a flag to indicate that the content brief has been generated
                         st.session_state.content_brief_generated = True
@@ -1651,6 +1838,14 @@ def image_creator_page():
                             ### Gemini AI Service Temporarily Unavailable
                             
                             The AI service is currently experiencing high demand or maintenance. Please try again in a few minutes.
+                            
+                            **Alternative options:**
+                            - Try refreshing the page
+                            - Try a different browser
+                            - Check your internet connection
+                            - Try again later when the service load may be lower
+                            
+                            Technical details: {e}
                             """)
                         else:
                             st.error(f"Error generating content brief: {str(e)}")
@@ -1727,7 +1922,7 @@ def image_creator_page():
                                 st.session_state.negative_prompt = negative_prompt
                             else:
                                 # Default negative prompt if none is provided
-                                st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional"
+                                st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, unreadable text, text errors, misspelled text, badly kerned text, unrealistic proportions, amateur, unprofessional, misaligned elements, unbalanced composition, poorly integrated text, floating text, awkward text placement, stretched logos, deformed products, uncanny faces, weird hands, poor typography, garish colors, inappropriate layout"
                             
                             # Display the Ideogram prompt
                             st.subheader("Generated Ideogram Prompt")
@@ -1875,7 +2070,7 @@ def image_creator_page():
                                             
                                             # Also store a default negative prompt
                                             if 'negative_prompt' not in st.session_state:
-                                                st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional"
+                                                st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, unreadable text, text errors, misspelled text, badly kerned text, unrealistic proportions, amateur, unprofessional, misaligned elements, unbalanced composition, poorly integrated text, floating text, awkward text placement, stretched logos, deformed products, uncanny faces, weird hands, poor typography, garish colors, inappropriate layout"
                                         
                                         # Create a button with the callback
                                         st.button(
@@ -1954,7 +2149,7 @@ def image_creator_page():
                                                     
                                                     # Also store a default negative prompt
                                                     if 'negative_prompt' not in st.session_state:
-                                                        st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional"
+                                                        st.session_state.negative_prompt = "blurry, distorted, low quality, pixelated, watermarks, unreadable text, text errors, misspelled text, badly kerned text, unrealistic proportions, amateur, unprofessional, misaligned elements, unbalanced composition, poorly integrated text, floating text, awkward text placement, stretched logos, deformed products, uncanny faces, weird hands, poor typography, garish colors, inappropriate layout"
                                                 
                                                 # Create a button with the callback
                                                 st.button(
@@ -2031,7 +2226,7 @@ def image_creator_page():
             else:
                 edited_negative_prompt = st.text_area(
                     "Negative Prompt (Optional)",
-                    value="blurry, distorted, low quality, pixelated, watermarks, text errors, unrealistic proportions, amateur, unprofessional",
+                    value="blurry, distorted, low quality, pixelated, watermarks, unreadable text, text errors, misspelled text, badly kerned text, unrealistic proportions, amateur, unprofessional, misaligned elements, unbalanced composition, poorly integrated text, floating text, awkward text placement, stretched logos, deformed products, uncanny faces, weird hands, poor typography, garish colors, inappropriate layout",
                     height=100,
                     help="Specify elements to avoid in the generated image."
                 )
@@ -2073,15 +2268,15 @@ def image_creator_page():
             
             # Add model selection
             model_options = {
-                "V_2_TURBO": "V_2_TURBO (Balanced speed and quality)",
-                "V_1_TURBO": "V_1_TURBO (Fastest generation)"
+                "V_2_TURBO": "V_2_TURBO (Best overall quality - recommended for ads)",
+                "V_1_TURBO": "V_1_TURBO (Faster generation but lower quality)"
             }
             selected_model = st.selectbox(
                 "Model",
                 list(model_options.keys()),
                 format_func=lambda x: model_options[x],
                 index=0,
-                help="V_2_TURBO offers balanced speed and quality. V_1_TURBO is faster but may have lower quality."
+                help="V_2_TURBO is recommended for professional advertising images with text. It produces higher quality results with better details."
             )
             
             # Get style options
@@ -2114,18 +2309,30 @@ def image_creator_page():
             
             display_color_palette(st.session_state.color_palette)
         
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Number of images selection
+        st.markdown("""
+        <h4 style="margin-top: 15px; margin-bottom: 10px; font-size: 1rem;">🔢 Number of Images</h4>
+        <p style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">Select how many variations of your image you want to generate:</p>
+        """, unsafe_allow_html=True)
         
-        # Number of images is fixed to 1 (hidden from user)
-        num_images = 1
+        num_images = st.slider(
+            "Number of images to generate", 
+            min_value=1, 
+            max_value=4, 
+            value=1, 
+            step=1,
+            help="Generate multiple variations of your image at once. More images will take longer to generate."
+        )
+        
+        st.markdown("</div>", unsafe_allow_html=True)
         
         # Generate image button with more prominence
         st.markdown("""
         <div style="text-align: center; margin: 30px 0;">
         """, unsafe_allow_html=True)
         
-        if st.button("🖼️ Generate Image", use_container_width=True, key="generate_button"):
-            with st.spinner("Creating your image with AI... This may take a moment."):
+        if st.button("🖼️ Generate Image" + ("s" if num_images > 1 else ""), use_container_width=True, key="generate_button"):
+            with st.spinner(f"Creating your {num_images} image{'s' if num_images > 1 else ''} with AI... This may take a moment."):
                 # Prepare color palette for API if available
                 color_palette_param = None
                 if 'color_palette' in st.session_state and st.session_state.color_palette:
@@ -2147,7 +2354,9 @@ def image_creator_page():
                         })
                 
                 # Ensure prompt is a string
-                if not isinstance(st.session_state.ideogram_prompt, str):
+                if 'ideogram_prompt' not in st.session_state:
+                    st.session_state.ideogram_prompt = edited_prompt
+                elif not isinstance(st.session_state.ideogram_prompt, str):
                     st.warning("The prompt is not in the expected format. Converting to a string format.")
                     if isinstance(st.session_state.ideogram_prompt, dict) and 'prompt' in st.session_state.ideogram_prompt:
                         st.session_state.ideogram_prompt = st.session_state.ideogram_prompt['prompt']
@@ -2158,9 +2367,28 @@ def image_creator_page():
                         except:
                             st.session_state.ideogram_prompt = str(st.session_state.ideogram_prompt)
                 
+                # Enhance the prompt for high-quality advertising images with text
+                enhanced_prompt = f"""
+                ULTRA PREMIUM QUALITY, professional advertising image with realistic mockup:
+                
+                {edited_prompt}
+                
+                CRITICAL REQUIREMENTS:
+                - Include professional English advertising text/copy that is CLEARLY READABLE
+                - Text must be properly integrated and well-placed with proper kerning and typography
+                - Use high-contrast text placement for readability
+                - Include realistic product mockups and proper lighting
+                - Professional-grade photography/rendering quality
+                - Perfect composition with balanced layout
+                - Hyper-realistic details and textures
+                - Well-designed advertising layout with proper spacing
+                
+                Style references: professional advertising photography, premium brand marketing, high-end commercial imagery, magazine-quality advertisement
+                """
+                
                 # Call Ideogram API
                 response = generate_image_with_ideogram(
-                    prompt=edited_prompt,
+                    prompt=enhanced_prompt,
                     style=style,
                     aspect_ratio=aspect_ratio,
                     negative_prompt=edited_negative_prompt,
@@ -2524,16 +2752,41 @@ def image_creator_page():
                             
                             # Add the final formatting instructions
                             prompt += """
-                            Format your response as a JSON array with 4 detailed prompts, like this:
-                            ["Prompt 1", "Prompt 2", "Prompt 3", "Prompt 4"]
+                            Format your response as a SIMPLE JSON array with 4 detailed prompts:
+                            ["Prompt for Panel 1", "Prompt for Panel 2", "Prompt for Panel 3", "Prompt for Panel 4"]
                             
-                            Do not include any explanations or additional text - ONLY return the JSON array.
+                            CRITICAL: DO NOT wrap the array in a JSON object with a "storyboard_panels" key.
+                            Return ONLY the JSON array with 4 strings, nothing else.
+                            Do not include any explanations, additional text, or markdown formatting before or after the array.
+                            Each string in the array should be a complete, detailed prompt for that panel's image generation.
                             """
 
                             # Call Gemini API
+                            from google.genai import types
+                            
+                            # Define a schema for structured output
+                            response_schema = {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "STRING"
+                                }
+                            }
+                            
+                            # Configure the model
+                            generation_config = types.GenerateContentConfig(
+                                temperature=0.7,
+                                top_p=0.95,
+                                top_k=40,
+                                max_output_tokens=8192,
+                                response_mime_type="application/json",
+                                response_schema=response_schema
+                            )
+                            
+                            # Generate the storyboard prompts with structured output
                             response = client.models.generate_content(
                                 model="gemini-2.0-flash",
-                                contents=prompt
+                                contents=prompt,
+                                config=generation_config
                             )
                             
                             # Parse the response to extract the 4 prompts
@@ -2544,13 +2797,24 @@ def image_creator_page():
                                 
                                 # Clean the response text to extract just the JSON array
                                 response_text = response.text.strip()
-                                # Find anything that looks like a JSON array
+                                
+                                # Debug the raw response
+                                st.session_state.debug_response = response_text
+                                
+                                # First, try to extract a proper JSON array
                                 json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
                                 
                                 if json_match:
                                     json_str = json_match.group(0)
                                     try:
+                                        # Try to parse as a simple array of strings
                                         storyboard_prompts = json.loads(json_str)
+                                        
+                                        # Verify that we got an array of 4 elements
+                                        if isinstance(storyboard_prompts, list) and len(storyboard_prompts) >= 4:
+                                            storyboard_prompts = storyboard_prompts[:4]
+                                        else:
+                                            raise ValueError("Expected an array of at least 4 prompts")
                                     except json.JSONDecodeError as e:
                                         # Try to fix common JSON formatting issues
                                         # Replace single quotes with double quotes
@@ -2559,6 +2823,10 @@ def image_creator_page():
                                         json_str = re.sub(r'(?<!\\)"(?=(.*?".*?"))', r'\"', json_str)
                                         try:
                                             storyboard_prompts = json.loads(json_str)
+                                            if isinstance(storyboard_prompts, list) and len(storyboard_prompts) >= 4:
+                                                storyboard_prompts = storyboard_prompts[:4]
+                                            else:
+                                                raise ValueError("Expected an array of at least 4 prompts")
                                         except json.JSONDecodeError:
                                             # If still failing, try a more aggressive approach
                                             # Split by commas and manually construct an array
@@ -2567,10 +2835,52 @@ def image_creator_page():
                                                 storyboard_prompts = parts[:4]
                                             else:
                                                 raise ValueError("Could not parse the response into 4 prompts")
+                                # Check if it might be a JSON object with a storyboard_panels key
+                                elif '"storyboard_panels"' in response_text or "'storyboard_panels'" in response_text:
+                                    try:
+                                        # Try to parse as JSON object
+                                        response_json = json.loads(response_text)
+                                        if "storyboard_panels" in response_json and isinstance(response_json["storyboard_panels"], list):
+                                            storyboard_prompts = response_json["storyboard_panels"]
+                                            if len(storyboard_prompts) >= 4:
+                                                storyboard_prompts = storyboard_prompts[:4]
+                                            else:
+                                                raise ValueError("Not enough prompts in storyboard_panels array")
+                                        else:
+                                            raise ValueError("storyboard_panels key not found or not an array")
+                                    except json.JSONDecodeError:
+                                        # Fix JSON formatting
+                                        fixed_text = response_text.replace("'", '"')
+                                        try:
+                                            response_json = json.loads(fixed_text)
+                                            if "storyboard_panels" in response_json and isinstance(response_json["storyboard_panels"], list):
+                                                storyboard_prompts = response_json["storyboard_panels"]
+                                                if len(storyboard_prompts) >= 4:
+                                                    storyboard_prompts = storyboard_prompts[:4]
+                                                else:
+                                                    raise ValueError("Not enough prompts in storyboard_panels array")
+                                            else:
+                                                raise ValueError("storyboard_panels key not found or not an array")
+                                        except:
+                                            # Last resort: look for array pattern inside storyboard_panels
+                                            panel_match = re.search(r'"storyboard_panels"\s*:\s*\[(.*?)\]', fixed_text, re.DOTALL)
+                                            if panel_match:
+                                                panel_content = panel_match.group(1)
+                                                parts = re.findall(r'"([^"]*)"', panel_content)
+                                                if len(parts) >= 4:
+                                                    storyboard_prompts = parts[:4]
+                                                else:
+                                                    raise ValueError("Not enough prompts found in storyboard_panels content")
+                                            else:
+                                                raise ValueError("Could not extract storyboard_panels content")
                                 else:
                                     # Fallback: try to parse the entire response as JSON
                                     try:
                                         storyboard_prompts = json.loads(response_text)
+                                        if isinstance(storyboard_prompts, list) and len(storyboard_prompts) >= 4:
+                                            storyboard_prompts = storyboard_prompts[:4]
+                                        else:
+                                            raise ValueError("Expected an array of at least 4 prompts")
                                     except json.JSONDecodeError:
                                         # Last resort: split by newlines and take 4 non-empty lines
                                         lines = [line.strip() for line in response_text.split('\n') if line.strip()]
@@ -2585,6 +2895,32 @@ def image_creator_page():
                                 
                                 # Store the prompts in session state
                                 st.session_state.storyboard_prompts = storyboard_prompts
+                                
+                                # Ensure all prompts are in string format
+                                for i in range(len(storyboard_prompts)):
+                                    if not isinstance(storyboard_prompts[i], str):
+                                        if isinstance(storyboard_prompts[i], dict) and 'prompt' in storyboard_prompts[i]:
+                                            storyboard_prompts[i] = storyboard_prompts[i]['prompt']
+                                        else:
+                                            try:
+                                                import json
+                                                storyboard_prompts[i] = json.dumps(storyboard_prompts[i])
+                                            except:
+                                                storyboard_prompts[i] = str(storyboard_prompts[i])
+                                
+                                # Fix the "storyboard_panels" issue sometimes seen in Panel 1
+                                if "storyboard_panels" in storyboard_prompts[0] and len(storyboard_prompts) >= 2:
+                                    # If panel 1 has this issue but panels 2+ look ok, create a new panel 1 from the concept
+                                    st.warning("Fixing formatting issue in Panel 1...")
+                                    storyboard_prompts[0] = f"Professional marketing image for '{storyboard_concept[:50]}...' with cohesive style matching the other panels. Includes clear text elements, consistent color palette, and professional composition."
+                                
+                                # Add debug expander - can be commented out in production
+                                with st.expander("Debug Information (for developers)", expanded=False):
+                                    st.markdown("### Raw Response from Gemini")
+                                    st.code(response_text)
+                                    st.markdown("### Processed Prompts")
+                                    for i, prompt in enumerate(storyboard_prompts):
+                                        st.markdown(f"**Panel {i+1}:** {prompt[:100]}...")
                                 
                                 # Display the 4 prompts
                                 st.subheader("Generated Storyboard Prompts")
@@ -2888,24 +3224,30 @@ def generate_image_with_ideogram(prompt, style=None, aspect_ratio="1:1", negativ
     num_images = max(1, min(4, num_images))
     
     # Ensure prompt is a string
-    if isinstance(prompt, dict):
-        # If prompt is a dictionary, convert it to a string
-        try:
-            # Extract the main prompt text if available
-            if 'prompt' in prompt and isinstance(prompt['prompt'], str):
-                prompt_text = prompt['prompt']
+    if not isinstance(prompt, str):
+        # If prompt is a dictionary with a 'prompt' key, extract that
+        if isinstance(prompt, dict) and 'prompt' in prompt:
+            prompt = prompt['prompt']
+        elif isinstance(prompt, dict) and 'business_context' in prompt:
+            # For more complex business context prompts
+            business_context = prompt.get('business_context', '')
+            prompt_text = prompt.get('prompt', '')
+            if prompt_text:
+                if business_context:
+                    prompt = f"{prompt_text} (Context: {business_context})"
+                else:
+                    prompt = prompt_text
             else:
-                # Convert the entire dictionary to a JSON string and then to a readable format
+                # Fallback with a generic message
+                prompt = "Create a professional business image with modern design elements."
+                st.warning("Using a default prompt as the provided format could not be processed.")
+        else:
+            # Convert any other type to string as best we can
+            try:
                 import json
-                prompt_json = json.dumps(prompt)
-                prompt_text = f"Create an image based on this description: {prompt_json}"
-            
-            # Use the extracted or converted prompt
-            prompt = prompt_text
-        except Exception as e:
-            st.error(f"Error processing prompt: {e}")
-            st.error("Using a simplified prompt instead.")
-            prompt = "Create a professional business image with abstract elements and modern design."
+                prompt = json.dumps(prompt)
+            except:
+                prompt = str(prompt)
     
     # Prepare payload with the correct structure
     payload = {
@@ -2952,6 +3294,7 @@ def display_ideogram_images(response):
     from PIL import Image
     import requests
     import base64
+    import math
     
     if not response or "data" not in response:
         st.error("No images found in the response.")
@@ -2972,19 +3315,13 @@ def display_ideogram_images(response):
         st.warning("No images were generated. Please try again with a different prompt or settings.")
         return
     
-    # Initialize session state for slideshow if not already there
+    # Store the generated images in session state
     if "generated_images" not in st.session_state:
         st.session_state.generated_images = image_urls
     else:
         # Update the images if they're different from what's already stored
         if st.session_state.generated_images != image_urls:
             st.session_state.generated_images = image_urls
-            # Reset the index when new images are loaded
-            st.session_state.current_image_index = 0
-    
-    # Initialize current image index if not already there
-    if "current_image_index" not in st.session_state:
-        st.session_state.current_image_index = 0
     
     # Display number of images generated
     num_images = len(image_urls)
@@ -3014,97 +3351,17 @@ def display_ideogram_images(response):
             st.warning(f"Could not resize image: {e}")
             return image_url
     
-    # Create a slideshow if there are multiple images
-    if num_images > 1:
-        # Ensure index is within bounds
-        if st.session_state.current_image_index >= num_images:
-            st.session_state.current_image_index = 0
-        
-        # Create columns for navigation
-        col1, col2, col3 = st.columns([1, 3, 1])
-        
-        with col1:
-            # Previous button
-            if st.button("← Previous", key="prev_button"):
-                st.session_state.current_image_index = (st.session_state.current_image_index - 1) % num_images
-        
-        with col2:
-            # Display current image number
-            current_idx = st.session_state.current_image_index + 1
-            st.markdown(f"<h4 style='text-align: center;'>Image {current_idx} of {num_images}</h4>", unsafe_allow_html=True)
-        
-        with col3:
-            # Next button
-            if st.button("Next →", key="next_button"):
-                st.session_state.current_image_index = (st.session_state.current_image_index + 1) % num_images
-        
-        # Get the current image URL
-        current_url = image_urls[st.session_state.current_image_index]
-        
-        # Get resized image for preview
-        resized_image_data = resize_image_for_preview(current_url)
-        
-        # Display the resized image
-        st.markdown(f"""
-        <div style="display: flex; justify-content: center; margin: 0 auto;">
-            <img src="{resized_image_data}" style="max-width: 100%;">
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Add download button for the current image (original quality)
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown(
-                f"""
-                <div style="text-align: center;">
-                    <a href="{current_url}" download="ideogram_image_{st.session_state.current_image_index+1}.jpg" 
-                       style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; 
-                       text-decoration: none; border-radius: 5px; font-weight: bold;">
-                       Download Original Quality Image
-                    </a>
-                </div>
-                """, 
-                unsafe_allow_html=True
-            )
-        
-        # Add a thumbnail gallery for quick navigation
-        st.markdown("### All Generated Images")
-        
-        # Create a grid of thumbnails
-        thumbnail_cols = st.columns(min(4, num_images))
-        
-        for i, url in enumerate(image_urls):
-            with thumbnail_cols[i % min(4, num_images)]:
-                # Add a border to the current image in the gallery
-                border_style = "border: 3px solid #4CAF50;" if i == st.session_state.current_image_index else ""
-                
-                # Get resized thumbnail
-                thumbnail_data = resize_image_for_preview(url, max_width=150)
-                
-                # Display the thumbnail
-                st.markdown(
-                    f"""
-                    <div style="text-align: center; margin-bottom: 10px; {border_style}">
-                        <img src="{thumbnail_data}" style="width: 100%; max-width: 150px;">
-                        <p style="margin-top: 5px;">Image {i+1}</p>
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
-                
-                # Add a button to select this image
-                if st.button(f"View {i+1}", key=f"thumb_{i}"):
-                    st.session_state.current_image_index = i
-    else:
-        # Display single image with reduced size
+    # Determine grid layout based on number of images
+    if num_images == 1:
+        # For a single image, display it at larger size
         current_url = image_urls[0]
         
         # Get resized image for preview
-        resized_image_data = resize_image_for_preview(current_url)
+        resized_image_data = resize_image_for_preview(current_url, max_width=800)
         
         # Display the resized image
         st.markdown(f"""
-        <div style="display: flex; justify-content: center; margin: 0 auto;">
+        <div style="display: flex; justify-content: center; margin: 0 auto; padding-bottom: 20px;">
             <img src="{resized_image_data}" style="max-width: 100%;">
         </div>
         """, unsafe_allow_html=True)
@@ -3114,7 +3371,7 @@ def display_ideogram_images(response):
         with col2:
             st.markdown(
                 f"""
-                <div style="text-align: center;">
+                <div style="text-align: center; margin-bottom: 30px;">
                     <a href="{current_url}" download="ideogram_image.jpg" 
                        style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; 
                        text-decoration: none; border-radius: 5px; font-weight: bold;">
@@ -3124,6 +3381,58 @@ def display_ideogram_images(response):
                 """, 
                 unsafe_allow_html=True
             )
+    else:
+        # For multiple images, display in a grid
+        # Calculate number of rows and columns for the grid
+        if num_images <= 2:
+            cols_per_row = num_images
+        else:
+            cols_per_row = 2  # 2x2 grid or 2x1 grid depending on number of images
+        
+        rows = math.ceil(num_images / cols_per_row)
+        
+        # Create grid layout
+        for row in range(rows):
+            # Create columns for this row
+            image_cols = st.columns(cols_per_row)
+            
+            # Add images to this row
+            for col in range(cols_per_row):
+                image_index = row * cols_per_row + col
+                
+                # Check if we've exceeded the number of available images
+                if image_index >= num_images:
+                    break
+                
+                # Get current image URL
+                current_url = image_urls[image_index]
+                
+                # Display image in its column
+                with image_cols[col]:
+                    # Get resized image for preview
+                    resized_image_data = resize_image_for_preview(current_url, max_width=400)
+                    
+                    # Display the resized image with panel number
+                    st.markdown(f"### Image {image_index + 1}")
+                    st.markdown(f"""
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <img src="{resized_image_data}" style="max-width: 100%; border-radius: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Add download button for this image
+                    st.markdown(
+                        f"""
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <a href="{current_url}" download="ideogram_image_{image_index+1}.jpg" 
+                            style="display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; 
+                            text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 0.9rem;">
+                            Download Original Quality
+                            </a>
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
 
 def get_ideogram_aspect_ratios():
     """Get available aspect ratios for Ideogram API.
