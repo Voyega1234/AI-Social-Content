@@ -1256,29 +1256,65 @@ def image_creator_page():
     import re  # Ensure re module is available in this scope
     
     st.markdown('<div class="generated-content">', unsafe_allow_html=True)
-    st.title("AI Image Concept Generator")
+    st.title("🖼️ AI Image Creator")
     st.write("Generate creative image concepts and create images using AI.")
+    
+    # Check if business context analysis data is available from the Business Analysis page
+    if 'business_context_analysis_json' in st.session_state:
+        # Display a success message that business context is being applied
+        st.markdown("""
+        <div style="background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; margin: 15px 0; border-radius: 5px;">
+            <h4 style="margin-top: 0; display: flex; align-items: center;">
+                <span style="margin-right: 10px;">✅</span> Business Context Analysis Applied!
+            </h4>
+            <p style="margin-bottom: 5px;">The audience analysis data is enhancing your image generation.</p>
+            <p style="margin-bottom: 0;"><strong>Your images will be optimized for:</strong> Your specific target audience demographics, preferences, and needs.</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Add a quick guide
     with st.expander("🎨 How to Use This Tool", expanded=False):
         st.markdown("""
         ### Quick Guide to Generating Image Concepts
         
-        1. **Select a Business**: Choose from existing businesses or enter a new one
-        2. **Choose Platform**: Select the social media platform for your image
-        3. **Describe Your Idea**: Provide a brief description of what you are looking for
-        4. **Add Color Palette**: Input hex color codes to define your color palette
-        5. **Generate Concept**: Click the button to create AI-powered image concepts
-        6. **Create Image**: Use the generated prompt to create an actual image with Ideogram
-        7. **Download & Use**: Download the generated images for your social media content
+        #### Complete Workflow (Recommended):
+        1. **Start with Business Analysis**: 
+           - Go to the "Business Context Analysis" tab first
+           - Select your business and run the analysis
+           - This provides valuable audience insights that will enhance your images
+        
+        2. **Generate Image Concepts**:
+           - Return to this "Image Creator" tab
+           - Select your business (the analysis data will automatically be applied)
+           - Describe your idea and generate creative concepts
+        
+        3. **Create & Refine Images**:
+           - Use the generated concepts to create actual images
+           - Download and use for your social media
+        
+        #### Step-by-Step Instructions:
+        1. **Select Business**: Choose an existing business (analysis data will be applied if available)
+        2. **Platform & Content Type**: Select the platform and content format
+        3. **Describe Your Idea**: Provide details about what you want in your image
+        4. **Color Palette** (Optional): Add specific hex colors if you have brand colors
+        5. **Reference Image** (Optional): Upload an image to inspire the AI's style
+        6. **Generate Concepts**: Get AI-powered image ideas with effective prompts
+        7. **Create Images**: Use these concepts to generate actual images
+        8. **Download & Share**: Save your images for use in marketing campaigns
+        
+        #### How Business Analysis Improves Your Images:
+        - **Targeted Demographics**: Images will match your audience's age, lifestyle, and preferences
+        - **Visual Style Alignment**: Automatically adjusts style to match audience expectations
+        - **Content Relevance**: Incorporates themes that resonate with your specific audience
+        - **Brand Consistency**: Maintains your brand identity across all generated images
+        - **Higher Engagement**: Creates images more likely to connect with your target audience
         
         **Pro Tips:**
-        - Be specific about the mood, style, and elements you want in your image
+        - Use the Advanced Image Options ▾ to customize aspect ratio and add negative prompts
+        - Add Campaign Options ▾ to organize your generated content by campaign
+        - For best results, always run the Business Context Analysis first
+        - Be specific about mood, style, and visual elements you want
         - Try different aspect ratios for different platforms (1:1 for Instagram, 16:9 for Twitter)
-        - Use negative prompts to avoid unwanted elements in your images
-        - Upload reference images to help the AI understand your visual style better
-        - Add specific hex color codes to control the color palette of your generated images
-        - The tool will use Business Context Analysis data to enhance image generation
         """)
     
     # Get database connection for fetching business names
